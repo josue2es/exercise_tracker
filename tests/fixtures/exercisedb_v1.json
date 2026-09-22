@@ -1,0 +1,57 @@
+{
+  "pages": [
+    {
+      "data": [
+        {
+          "exerciseId": "0001",
+          "name": "barbell bench press",
+          "gifUrl": "https://static.exercisedb.dev/media/0001.gif",
+          "bodyParts": ["Chest"],
+          "equipments": ["Barbell"],
+          "targetMuscles": ["pectorals"],
+          "secondaryMuscles": ["triceps"],
+          "instructions": [
+            "Step:1 Lie flat on a bench.",
+            "Step:2 Lower the barbell."
+          ]
+        },
+        {
+          "exerciseId": "0002",
+          "name": "EZ-bar curl",
+          "gifUrl": "https://static.exercisedb.dev/media/0002.gif",
+          "bodyParts": ["Upper Arms"],
+          "equipments": ["EZ Barbell"],
+          "targetMuscles": ["biceps"],
+          "secondaryMuscles": ["forearms"],
+          "instructions": ["Step:1 Stand up straight."]
+        }
+      ],
+      "meta": {
+        "total": 3,
+        "hasNextPage": true,
+        "hasPreviousPage": false,
+        "nextCursor": "0002"
+      }
+    },
+    {
+      "data": [
+        {
+          "exerciseId": "0003",
+          "name": "push-up",
+          "gifUrl": "https://static.exercisedb.dev/media/0003.gif",
+          "bodyParts": ["Chest"],
+          "equipments": ["Body Weight"],
+          "targetMuscles": ["pectorals"],
+          "secondaryMuscles": [],
+          "instructions": ["Step:1 Get into plank position."]
+        }
+      ],
+      "meta": {
+        "total": 3,
+        "hasNextPage": false,
+        "hasPreviousPage": true,
+        "nextCursor": null
+      }
+    }
+  ]
+}

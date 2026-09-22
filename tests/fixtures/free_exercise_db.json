@@ -1,0 +1,47 @@
+{
+  "items": [
+    {
+      "id": "Barbell_Bench_Press",
+      "name": "Barbell Bench Press",
+      "force": "push",
+      "level": "intermediate",
+      "mechanic": "compound",
+      "equipment": "barbell",
+      "primaryMuscles": ["pectorals"],
+      "secondaryMuscles": ["triceps"],
+      "instructions": [
+        "Lie on the bench.",
+        "Lower the bar.",
+        "Press it back up."
+      ],
+      "category": "strength",
+      "images": ["Barbell_Bench_Press/0.jpg", "Barbell_Bench_Press/1.jpg"]
+    },
+    {
+      "id": "Pull-up",
+      "name": "Pull-up",
+      "force": "pull",
+      "level": "beginner",
+      "mechanic": "compound",
+      "equipment": null,
+      "primaryMuscles": ["lats"],
+      "secondaryMuscles": [],
+      "instructions": ["Grab the bar.", "Pull up."],
+      "category": "strength",
+      "images": ["Pull-up/0.jpg"]
+    },
+    {
+      "id": "Plank",
+      "name": "Plank",
+      "force": "static",
+      "level": "beginner",
+      "mechanic": null,
+      "equipment": "body only",
+      "primaryMuscles": ["abdominals"],
+      "secondaryMuscles": [],
+      "instructions": ["Hold the position."],
+      "category": "stretching",
+      "images": []
+    }
+  ]
+}

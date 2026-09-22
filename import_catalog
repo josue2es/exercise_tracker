@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Catalog import CLI wrapper (spec: `import_catalog --source all|free|exercisedb`).
+set -e
+cd "$(dirname "$0")"
+exec .venv/bin/python -m scripts.import_catalog "$@"
