@@ -169,7 +169,7 @@ class TrainingSession(Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     sets: Mapped[list["SetLog"]] = relationship(
-        order_by="SetLog.set_number", cascade="all, delete-orphan"
+        back_populates="session", order_by="SetLog.set_number", cascade="all, delete-orphan"
     )
 
 
@@ -197,6 +197,7 @@ class SetLog(Base):
     logged_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
 
     exercise: Mapped["Exercise"] = relationship()
+    session: Mapped["TrainingSession"] = relationship(back_populates="sets")
 
 
 class AuditLog(Base):
