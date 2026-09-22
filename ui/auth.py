@@ -61,7 +61,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
             user_id = app.storage.user.get("user_id")
         except Exception:  # no session context: treat as logged out
             user_id = None
-
         if user_id is None:
             return RedirectResponse(f"/login?next={quote(path)}", status_code=303)
 

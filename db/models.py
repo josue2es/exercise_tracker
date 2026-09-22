@@ -20,7 +20,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 def utcnow() -> datetime:
@@ -109,6 +109,10 @@ class Workout(Base):
     __tablename__ = "workouts"
     __table_args__ = (Index("ix_workouts_user_deleted", "user_id", "deleted_at"),)
 
+    exercises: Mapped[list["WorkoutExercise"]] = relationship(
+        order_by="WorkoutExercise.position", cascade="all, delete-orphan"
+    )
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
@@ -138,6 +142,8 @@ class WorkoutExercise(Base):
     target_reps_max: Mapped[int] = mapped_column(Integer, nullable=False, default=12)
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    exercise: Mapped["Exercise"] = relationship()
+
 
 class TrainingSession(Base):
     __tablename__ = "sessions"
@@ -162,6 +168,10 @@ class TrainingSession(Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    sets: Mapped[list["SetLog"]] = relationship(
+        order_by="SetLog.set_number", cascade="all, delete-orphan"
+    )
+
 
 class SetLog(Base):
     __tablename__ = "set_logs"
@@ -185,6 +195,8 @@ class SetLog(Base):
     weight_value: Mapped[float | None] = mapped_column(nullable=True)
     weight_unit: Mapped[str | None] = mapped_column(String(5), nullable=True)
     logged_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+
+    exercise: Mapped["Exercise"] = relationship()
 
 
 class AuditLog(Base):

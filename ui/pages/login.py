@@ -1,6 +1,6 @@
 """Login page."""
 
-from nicegui import app, ui
+from nicegui import app, run, ui
 
 import services.users as users
 from services.errors import ServiceError
@@ -27,9 +27,9 @@ def login_page():
     request = request_contextvar.get()
     next_path = request.query_params.get("next", "/") if request else "/"
 
-    def do_login():
+    async def do_login():
         try:
-            user = ui.run.io_bound(
+            user = await run.io_bound(
                 users.authenticate, email.value, password.value, _client_ip()
             )
         except ServiceError as exc:

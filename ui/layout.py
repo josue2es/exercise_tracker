@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-
 from nicegui import ui
 
-from services.errors import ServiceError
 from ui.auth import current_user
 
 RECONNECT_BANNER_HTML = """
@@ -44,15 +41,6 @@ RECONNECT_BANNER_HTML = """
 def handle_service_error(exc: ServiceError) -> None:
     """Show a service error as a UI notification."""
     ui.notify(str(exc), type="negative", position="top")
-
-
-def run_service(fn: Callable, *args, **kwargs):
-    """Call a blocking service function off the event loop, showing errors."""
-    try:
-        return ui.run.io_bound(fn, *args, **kwargs)
-    except ServiceError as exc:
-        handle_service_error(exc)
-        return None
 
 
 def page_head() -> None:

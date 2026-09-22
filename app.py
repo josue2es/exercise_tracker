@@ -106,12 +106,16 @@ import ui.pages  # noqa: E402,F401  (registers all @ui.page routes)
 
 
 def main() -> None:
-    """Run the app with uvicorn (single worker, as NiceGUI requires)."""
+    """Run the app with uvicorn (single worker, as NiceGUI requires).
+
+    The app object is passed directly: an import string would re-import this
+    module (it may already be running as __main__) and wire NiceGUI twice.
+    """
     import uvicorn
 
     logging.basicConfig(level=settings.log_level.upper())
     uvicorn.run(
-        "app:app",
+        app,
         host=settings.bind_host,
         port=settings.bind_port,
         workers=1,

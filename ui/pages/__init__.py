@@ -6,4 +6,5 @@ from ui.pages import (  # noqa: F401
     invite,
     login,
     settings,
+    workout_editor,
 )

@@ -94,3 +94,26 @@ def get_exercise(ctx: UserContext, exercise_id: int) -> ExerciseDetail:
         if exercise is None:
             raise NotFoundError("Exercise not found")
         return _to_detail(exercise)
+
+
+def filter_options(ctx: UserContext) -> dict[str, list[str]]:
+    """Distinct muscle and equipment values plus sources, for picker filters.
+
+    Values are stored as given by each source (phase 2 will normalize them)."""
+    muscles: set[str] = set()
+    equipment: set[str] = set()
+    with get_session() as session:
+        rows = session.execute(
+            select(Exercise.primary_muscles, Exercise.secondary_muscles, Exercise.equipment).where(
+                Exercise.retired_at.is_(None)
+            )
+        ).all()
+        sources = sorted(session.scalars(select(Exercise.source).distinct()).all())
+    for primary, secondary, equip in rows:
+        muscles.update(m.lower() for m in (primary or []) + (secondary or []))
+        equipment.update(e.lower() for e in (equip or []))
+    return {
+        "muscles": sorted(muscles),
+        "equipment": sorted(equipment),
+        "sources": sources,
+    }

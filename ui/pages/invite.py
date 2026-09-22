@@ -1,6 +1,6 @@
 """Accept-invite page: the invitee sets a name and password."""
 
-from nicegui import ui
+from nicegui import run, ui
 
 import services.users as users
 from services.errors import ServiceError
@@ -9,12 +9,12 @@ from ui.auth import login_user
 
 @ui.page("/invite/{token}", title="Accept invite — Gym Tracker")
 def invite_page(token: str):
-    def accept():
+    async def accept():
         if password.value != confirm.value:
             ui.notify("Passwords do not match", type="negative", position="top")
             return
         try:
-            user_id = ui.run.io_bound(users.accept_invite, token, name.value, password.value)
+            user_id = await run.io_bound(users.accept_invite, token, name.value, password.value)
         except ServiceError as exc:
             ui.notify(str(exc), type="negative", position="top")
             return
