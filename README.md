@@ -148,3 +148,125 @@ Every write through REST or MCP is recorded in the audit log.
 - Tests cover user isolation (user B and admins get 404 for user A's data),
   key scopes, one-open-session, lazy idle close, retry-safe set logging, and
   the import pagination stop conditions.
+
+## Runbook
+
+Common operations tasks. Unless noted otherwise, commands run in
+`/home/ubuntu/exercise_tracker` with the service venv
+(`.venv/bin/python`), and the service is restarted afterwards:
+`sudo systemctl restart gym-tracker`.
+
+### Rotate the storage secret
+
+Do this if `STORAGE_SECRET` may have leaked. **Effect: every browser session
+is logged out** (UI only; API keys keep working).
+
+1. Generate a new secret:
+   `python -c "import secrets; print(secrets.token_hex(32))"`
+2. Put it in `.env` as `STORAGE_SECRET`.
+3. Restart the service. Everyone logs in again; nothing else is lost.
+
+### Reset a user's password
+
+Phase 1 has no admin password reset (by design — admins manage accounts, not
+credentials). If a user is locked out, set a temporary password directly and
+ask them to change it in Settings:
+
+```bash
+sudo systemctl stop gym-tracker
+.venv/bin/python - <<'EOF'
+import os
+os.environ.setdefault("DATABASE_PATH", "data/gym.db")
+from db.session import configure, get_session
+configure("sqlite:///" + os.path.abspath(os.environ["DATABASE_PATH"]))
+from db.models import User
+from services.users import hash_password
+with get_session() as s:
+    from sqlalchemy import select as _select
+    user = s.scalars(_select(User).where(User.email == "them@example.com")).one()
+    user.password_hash = hash_password("temporary-password")
+print("password reset")
+EOF
+sudo systemctl start gym-tracker
+```
+
+### Revoke a compromised API key
+
+The key's owner can revoke it in Settings → API keys. If they can't (lost
+laptop with a stored key), any of these works:
+
+- **Deactivate the user** in Admin (blocks login, UI sessions and all their
+  keys at once), then reactivate after the key is revoked.
+- Revoke the key directly in the database (safe while the service runs):
+
+```bash
+.venv/bin/python - <<'EOF'
+import os
+os.environ.setdefault("DATABASE_PATH", "data/gym.db")
+from db.session import configure, get_session
+configure("sqlite:///" + os.path.abspath(os.environ["DATABASE_PATH"]))
+from db.models import ApiKey, utcnow
+with get_session() as s:
+    from sqlalchemy import select as _select
+    for key in s.scalars(_select(ApiKey).where(ApiKey.revoked_at.is_(None))):
+        print(key.id, key.label, key.key_prefix, "…", key.scopes)
+    key_id = int(input("key id to revoke: "))
+    s.get(ApiKey, key_id).revoked_at = utcnow()
+print("revoked")
+EOF
+```
+
+### Add or change agent IPs
+
+Edit `AGENT_IPS` in the Caddy site block (`deploy/Caddyfile`), reload Caddy
+(`sudo systemctl reload caddy`). No app restart needed; agents on this host
+can always call `127.0.0.1:8080` directly.
+
+### Refresh exercise media
+
+Media files are re-downloadable; the database never depends on them:
+
+```bash
+rm -rf data/media/free-exercise-db && ./import_catalog --source free
+```
+
+### Check what an agent has been doing
+
+Every REST/MCP write and every admin action is in the audit log:
+
+```bash
+.venv/bin/python - <<'EOF'
+import os
+os.environ.setdefault("DATABASE_PATH", "data/gym.db")
+from db.session import configure, get_session
+configure("sqlite:///" + os.path.abspath(os.environ["DATABASE_PATH"]))
+from db.models import AuditLog
+with get_session() as s:
+    from sqlalchemy import select as _select
+    for row in s.scalars(_select(AuditLog).order_by(AuditLog.id.desc()).limit(30)):
+        print(row.created_at, row.actor, f"user={row.user_id}", row.action, row.target or "")
+EOF
+```
+
+### Upgrade the app
+
+```bash
+git pull && uv sync && uv run alembic upgrade head
+sudo systemctl restart gym-tracker
+```
+
+### Move to a new host
+
+1. New host: clone the repo, `uv sync`, copy `.env` (or edit it).
+2. Restore the latest backup per the restore procedure above.
+3. Re-download media: `./import_catalog --source all`.
+4. Install the systemd units + Caddy block, start everything, check `/healthz`.
+
+### Verify the running system
+
+```bash
+systemctl status gym-tracker           # service up?
+curl -s http://127.0.0.1:8080/healthz  # app healthy?
+ls -lt data/backups | head -3          # backups recent?
+systemctl list-timers gym-backup.timer # backup scheduled?
+```
