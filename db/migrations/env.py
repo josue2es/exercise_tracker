@@ -11,7 +11,8 @@ from db.models import Base
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # Keep the app's loggers alive when migrations run inside the app process.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 if not config.get_main_option("sqlalchemy.url"):
     # Fall back to the app config (env / .env) when the caller didn't set one.

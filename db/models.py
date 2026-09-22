@@ -54,7 +54,9 @@ class Invite(Base):
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     role: Mapped[str] = mapped_column(String(20), nullable=False, default="member")
-    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+    # Null only for the bootstrap invite that creates the first admin.
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     used_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)

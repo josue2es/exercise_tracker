@@ -22,7 +22,6 @@ from urllib.parse import quote
 
 import httpx
 from sqlalchemy import select
-from sqlalchemy import inspect as sqlalchemy_inspect
 
 from config import settings
 from db.models import Exercise, ImportRun
@@ -403,17 +402,9 @@ def import_source(
 
 def ensure_schema() -> None:
     """Apply Alembic migrations if the database has no tables yet."""
-    from alembic import command
-    from alembic.config import Config
+    from db.upgrade import ensure_schema as _ensure
 
-    from db.session import get_engine
-
-    inspector = sqlalchemy_inspect(get_engine())
-    if not inspector.get_table_names():
-        alembic_cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
-        alembic_cfg.set_main_option("script_location", str(Path(__file__).resolve().parents[1] / "db" / "migrations"))
-        alembic_cfg.set_main_option("sqlalchemy.url", get_engine().url.render_as_string(hide_password=False))
-        command.upgrade(alembic_cfg, "head")
+    _ensure()
 
 
 def main(argv: list[str] | None = None) -> int:

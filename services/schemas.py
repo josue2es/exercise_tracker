@@ -144,3 +144,33 @@ class TrainingSummary(BaseModel):
     total_volume_kg: float
     volume_per_muscle: list[MuscleVolume]
     best_sets: list[BestSet]
+
+
+# --- Users and invites ------------------------------------------------------------
+
+
+class UserInfo(BaseModel):
+    id: int
+    email: str
+    display_name: str
+    role: str
+    unit_pref: str
+    time_zone: str
+    is_active: bool
+    created_at: datetime
+    last_login_at: datetime | None = None
+
+
+class InviteInfo(BaseModel):
+    id: int
+    email: str
+    role: str
+    created_at: datetime
+    expires_at: datetime
+    used_at: datetime | None = None
+    used_by: int | None = None
+    revoked_at: datetime | None = None
+
+    @property
+    def is_pending(self) -> bool:  # pragma: no cover - trivial helper for UI
+        return self.used_at is None and self.revoked_at is None
