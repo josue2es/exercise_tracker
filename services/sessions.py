@@ -21,7 +21,7 @@ from db.session import get_session as get_db_session
 from services.audit import record_audit
 from services.context import UserContext
 from services.errors import NotFoundError, ScopeError, ValidationError
-from services.schemas import SessionDetail, SessionSummary, SetLogItem, Weight
+from services.schemas import SessionDetail, SessionSummary, SetLogItem, Weight, utc as utc_
 
 IDLE_CLOSE_HOURS = 6
 VALID_UNITS = {"kg", "lb"}
@@ -38,7 +38,7 @@ def _to_set_item(log: SetLog) -> SetLogItem:
         weight=Weight(value=log.weight_value, unit=log.weight_unit)
         if log.weight_value is not None
         else None,
-        logged_at=log.logged_at,
+        logged_at=utc_(log.logged_at),
     )
 
 
@@ -47,9 +47,9 @@ def _to_session_detail(session: TrainingSession) -> SessionDetail:
         id=session.id,
         workout_id=session.workout_id,
         workout_name=session.workout_name,
-        started_at=session.started_at,
-        last_activity_at=session.last_activity_at,
-        finished_at=session.finished_at,
+        started_at=utc_(session.started_at),
+        last_activity_at=utc_(session.last_activity_at),
+        finished_at=utc_(session.finished_at),
         notes=session.notes,
         sets=[_to_set_item(s) for s in session.sets],
     )
@@ -136,9 +136,9 @@ def list_sessions(
                 id=r.id,
                 workout_id=r.workout_id,
                 workout_name=r.workout_name,
-                started_at=r.started_at,
-                last_activity_at=r.last_activity_at,
-                finished_at=r.finished_at,
+                started_at=utc_(r.started_at),
+                last_activity_at=utc_(r.last_activity_at),
+                finished_at=utc_(r.finished_at),
                 notes=r.notes,
             )
             for r in rows
@@ -233,39 +233,82 @@ def log_set(
             session.add(row)
             session.flush()
 
-        if set_number is None:
-            highest = session.scalars(
-                select(SetLog.set_number).where(
-                    SetLog.session_id == row.id, SetLog.exercise_id == exercise_id
-                )
-            ).all()
-            set_number = max(highest, default=0) + 1
-        else:
-            existing = session.scalars(
-                select(SetLog).where(
-                    SetLog.session_id == row.id,
-                    SetLog.exercise_id == exercise_id,
-                    SetLog.set_number == set_number,
-                )
-            ).one_or_none()
-            if existing is not None:
-                # Retried call: return the existing set unchanged.
-                return _to_set_item(existing)
-
-        log = SetLog(
-            session_id=row.id,
-            user_id=ctx.user_id,  # always inherits from the session
-            exercise_id=exercise_id,
-            set_number=set_number,
-            reps=reps,
-            weight_value=weight_value,
-            weight_unit=weight_unit,
+        return _insert_set(
+            session, ctx, row, exercise_id, reps, weight_value, weight_unit, set_number
         )
-        session.add(log)
-        row.last_activity_at = utcnow()
-        session.flush()
-        _audit(session, ctx, "set.log", target=f"{exercise.name} #{set_number}")
-        return _to_set_item(log)
+
+
+def log_set_to_session(
+    ctx: UserContext,
+    session_id: int,
+    exercise_id: int,
+    reps: int,
+    weight_value: float | None = None,
+    weight_unit: str | None = None,
+    set_number: int | None = None,
+) -> SetLogItem:
+    """Log one set into a specific (open) session. Same retry semantics as
+    log_set: a repeated set_number returns the existing set unchanged."""
+    ctx.require_write()
+    _validate_set_input(reps, weight_value, weight_unit)
+    if set_number is not None and set_number < 1:
+        raise ValidationError("set_number must be at least 1")
+    with get_db_session() as session:
+        row = _get_owned_session(session, ctx, session_id)
+        if row.finished_at is not None:
+            raise ValidationError("This session is already finished")
+        exercise = session.get(Exercise, exercise_id)
+        if exercise is None:
+            raise NotFoundError("Exercise not found")
+        return _insert_set(
+            session, ctx, row, exercise_id, reps, weight_value, weight_unit, set_number
+        )
+
+
+def _insert_set(session, ctx: UserContext, session_row: TrainingSession, exercise_id, reps,
+                weight_value, weight_unit, set_number) -> SetLogItem:
+    exercise = session.get(Exercise, exercise_id)
+    if set_number is None:
+        highest = session.scalars(
+            select(SetLog.set_number).where(
+                SetLog.session_id == session_row.id, SetLog.exercise_id == exercise_id
+            )
+        ).all()
+        set_number = max(highest, default=0) + 1
+    else:
+        existing = session.scalars(
+            select(SetLog).where(
+                SetLog.session_id == session_row.id,
+                SetLog.exercise_id == exercise_id,
+                SetLog.set_number == set_number,
+            )
+        ).one_or_none()
+        if existing is not None:
+            # Retried call: return the existing set unchanged.
+            return _to_set_item(existing)
+
+    log = SetLog(
+        session_id=session_row.id,
+        user_id=ctx.user_id,  # always inherits from the session
+        exercise_id=exercise_id,
+        set_number=set_number,
+        reps=reps,
+        weight_value=weight_value,
+        weight_unit=weight_unit,
+    )
+    session.add(log)
+    session_row.last_activity_at = utcnow()
+    session.flush()
+    _audit(session, ctx, "set.log", target=f"{exercise.name} #{set_number}")
+    return _to_set_item(log)
+
+
+def update_session_notes(ctx: UserContext, session_id: int, notes: str | None) -> SessionDetail:
+    """Update only the notes of a session."""
+    with get_db_session() as session:
+        row = _get_owned_session(session, ctx, session_id)
+        row.notes = notes or None
+        return _to_session_detail(row)
 
 
 def update_set(

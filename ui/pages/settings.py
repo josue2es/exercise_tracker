@@ -7,6 +7,7 @@ from nicegui import run, ui
 import services.users as users
 from services.errors import ServiceError
 from ui.auth import current_context, current_user
+from ui.components.api_keys import api_keys_section
 from ui.layout import page_shell
 
 
@@ -71,4 +72,4 @@ async def settings_page():
             ui.label("Keys let your local agents read your data and log sets over REST or MCP.").classes(
                 "text-sm text-gray-500"
             )
-            # API key management is added in milestone 5 (see ui/components/api_keys.py).
+            await api_keys_section(ctx)

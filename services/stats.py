@@ -20,6 +20,7 @@ from services.schemas import (
     SetLogItem,
     TrainingSummary,
     Weight,
+    utc as utc_,
 )
 
 LB_TO_KG = 0.45359237
@@ -83,7 +84,7 @@ def get_last_performance(
             return None
         sets = _sets_for(session, exercise_id, session_row)
         return LastPerformance(
-            session_date=session_row.started_at,
+            session_date=utc_(session_row.started_at),
             sets=[_to_item(log) for log in sets],
         )
 
@@ -115,7 +116,7 @@ def get_exercise_history(
             ExerciseHistorySession(
                 session_id=row.id,
                 workout_name=row.workout_name,
-                date=row.started_at,
+                date=utc_(row.started_at),
                 sets=[_to_item(log) for log in _sets_for(session, exercise_id, row)],
             )
             for row in rows
@@ -177,15 +178,15 @@ def get_training_summary(ctx: UserContext, date_from, date_to) -> TrainingSummar
                 if log.weight_value is not None
                 else None,
                 reps=reps,
-                date=session_dates.get(log.session_id),
+                date=utc_(session_dates.get(log.session_id)),
             )
             for exercise_id, (kg, reps, log) in best.items()
         ]
         best_sets.sort(key=lambda b: b.exercise_name.lower())
 
         return TrainingSummary(
-            date_from=date_from,
-            date_to=date_to,
+            date_from=utc_(date_from),
+            date_to=utc_(date_to),
             session_count=len(sessions),
             total_sets=len(logs),
             total_volume_kg=round(_total_volume(logs), 1),

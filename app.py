@@ -9,12 +9,16 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 
+from api.router import router as api_router, service_error_handler
 from config import settings
 from db.session import configure as configure_db
+from services.errors import ServiceError
 
 log = logging.getLogger("gym_tracker")
 
@@ -30,7 +34,9 @@ async def lifespan(app: FastAPI):
     await run_in_threadpool(ensure_schema)
     await _seed_first_admin()
     log.info("Gym tracker ready (database: %s)", settings.database_path)
-    yield
+    # The MCP session manager only starts if its lifespan is entered here.
+    async with mcp_http.lifespan(mcp_http):
+        yield
 
 
 async def _seed_first_admin() -> None:
@@ -53,7 +59,29 @@ async def _seed_first_admin() -> None:
         )
 
 
-app = FastAPI(title="Gym Tracker", version="0.1.0", lifespan=lifespan, docs_url=None, redoc_url=None)
+app = FastAPI(
+    title="Gym Tracker",
+    version="0.1.0",
+    lifespan=lifespan,
+    docs_url="/api/docs",
+    redoc_url=None,
+)
+
+# REST API: versioned JSON under /api/v1 (Bearer API key auth).
+app.include_router(api_router)
+
+
+@app.exception_handler(ServiceError)
+async def handle_service_error(request: Request, exc: ServiceError):
+    return service_error_handler(request, exc)
+
+
+@app.exception_handler(RequestValidationError)
+async def handle_validation_error(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=422,
+        content={"error": "validation", "message": str(exc.errors()[:1])},
+    )
 
 
 @app.get("/healthz", include_in_schema=False)
@@ -64,6 +92,35 @@ def healthz() -> dict:
 
 app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
 app.mount("/static", StaticFiles(directory=Path("static")), name="static")
+
+# --- MCP server -------------------------------------------------------------------
+# The public endpoint must be exactly /mcp. Two traps: FastMCP's own path
+# combines with the mount path (silently doubling it to /mcp/mcp), and
+# Starlette's Mount("/mcp") only matches "/mcp/…", not the bare "/mcp". So we
+# build the FastMCP app with its internal route at "/" (keeping its full auth
+# middleware stack) and expose it through a shim route at exactly /mcp. Its
+# lifespan is entered in our own lifespan below.
+
+from starlette.routing import Route  # noqa: E402
+
+from mcp_server.server import mcp  # noqa: E402
+
+
+class _BareMcpPath:
+    """ASGI shim: forward requests at /mcp into the FastMCP app's root."""
+
+    def __init__(self, sub_app):
+        self._sub_app = sub_app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] in ("http", "websocket"):
+            scope = dict(scope)
+            scope["path"] = "/"
+        await self._sub_app(scope, receive, send)
+
+
+mcp_http = mcp.http_app(path="/")
+app.router.routes.append(Route("/mcp", endpoint=_BareMcpPath(mcp_http), name="mcp"))
 
 
 @app.get("/manifest.webmanifest", include_in_schema=False)

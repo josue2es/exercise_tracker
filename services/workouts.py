@@ -13,7 +13,7 @@ from db.session import get_session
 from services.audit import record_audit
 from services.context import UserContext
 from services.errors import NotFoundError, ScopeError, ValidationError
-from services.schemas import WorkoutDetail, WorkoutExerciseItem, WorkoutSummary
+from services.schemas import WorkoutDetail, WorkoutExerciseItem, WorkoutSummary, utc as utc_
 
 
 def _get_owned_workout(session, ctx: UserContext, workout_id: int) -> Workout:
@@ -35,6 +35,12 @@ def _validate_targets(sets: int, reps_min: int, reps_max: int) -> None:
         raise ValidationError("Target sets must be between 1 and 20")
     if not (1 <= reps_min <= reps_max <= 100):
         raise ValidationError("Rep range must satisfy 1 <= min <= max <= 100")
+
+
+def _audit(session, ctx: UserContext, action: str, target: str | None = None) -> None:
+    """Audit writes that arrive through REST or MCP."""
+    if ctx.actor in ("api", "mcp"):
+        record_audit(session, ctx, action, target)
 
 
 def _exercise_count_map(session, workout_ids: list[int]) -> dict[int, int]:
@@ -89,9 +95,9 @@ def _detail(session, workout: Workout) -> WorkoutDetail:
         name=workout.name,
         notes=workout.notes,
         exercise_count=len(items),
-        created_at=workout.created_at,
-        updated_at=workout.updated_at,
-        last_performed_at=last,
+        created_at=utc_(workout.created_at),
+        updated_at=utc_(workout.updated_at),
+        last_performed_at=utc_(last),
         exercises=items,
     )
 
@@ -116,9 +122,9 @@ def list_workouts(ctx: UserContext) -> list[WorkoutSummary]:
                 name=w.name,
                 notes=w.notes,
                 exercise_count=counts.get(w.id, 0),
-                created_at=w.created_at,
-                updated_at=w.updated_at,
-                last_performed_at=last.get(w.id),
+                created_at=utc_(w.created_at),
+                updated_at=utc_(w.updated_at),
+                last_performed_at=utc_(last.get(w.id)),
             )
             for w in workouts
         ]
@@ -144,7 +150,7 @@ def create_workout(ctx: UserContext, name: str, notes: str | None = None) -> Wor
         workout = Workout(user_id=ctx.user_id, name=name, notes=notes or None)
         session.add(workout)
         session.flush()
-        record_audit(session, ctx, "workout.create", target=workout.name)
+        _audit(session, ctx, "workout.create", target=workout.name)
         return _detail(session, workout)
 
 
@@ -166,7 +172,7 @@ def update_workout(
         if notes is not None:
             workout.notes = notes or None
         workout.updated_at = utcnow()
-        record_audit(session, ctx, "workout.update", target=workout.name)
+        _audit(session, ctx, "workout.update", target=workout.name)
         return _detail(session, workout)
 
 
@@ -221,7 +227,7 @@ def set_workout_exercises(
             )
         workout.updated_at = utcnow()
         session.flush()
-        record_audit(session, ctx, "workout.set_exercises", target=workout.name)
+        _audit(session, ctx, "workout.set_exercises", target=workout.name)
         return _detail(session, workout)
 
 
@@ -235,4 +241,4 @@ def delete_workout(ctx: UserContext, workout_id: int) -> None:
     with get_session() as session:
         workout = _get_owned_workout(session, ctx, workout_id)
         workout.deleted_at = utcnow()
-        record_audit(session, ctx, "workout.delete", target=workout.name)
+        _audit(session, ctx, "workout.delete", target=workout.name)

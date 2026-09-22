@@ -31,7 +31,7 @@ from services.errors import (
     ScopeError,
     ValidationError,
 )
-from services.schemas import InviteInfo, UserInfo
+from services.schemas import InviteInfo, UserInfo, utc as utc_
 
 log = logging.getLogger("gym_tracker.users")
 
@@ -91,8 +91,8 @@ def _to_user_info(user: User) -> UserInfo:
         unit_pref=user.unit_pref,
         time_zone=user.time_zone,
         is_active=user.is_active,
-        created_at=user.created_at,
-        last_login_at=user.last_login_at,
+        created_at=utc_(user.created_at),
+        last_login_at=utc_(user.last_login_at),
     )
 
 
@@ -101,11 +101,11 @@ def _to_invite_info(invite: Invite) -> InviteInfo:
         id=invite.id,
         email=invite.email,
         role=invite.role,
-        created_at=invite.created_at,
-        expires_at=invite.expires_at,
-        used_at=invite.used_at,
+        created_at=utc_(invite.created_at),
+        expires_at=utc_(invite.expires_at),
+        used_at=utc_(invite.used_at),
         used_by=invite.used_by,
-        revoked_at=invite.revoked_at,
+        revoked_at=utc_(invite.revoked_at),
     )
 
 

@@ -10,7 +10,7 @@ from db.models import Exercise
 from db.session import get_session
 from services.context import UserContext
 from services.errors import NotFoundError
-from services.schemas import ExerciseDetail, ExerciseSummary, Page
+from services.schemas import ExerciseDetail, ExerciseSummary, Page, utc as utc_
 
 MAX_LIMIT = 50
 
@@ -35,7 +35,7 @@ def _to_detail(exercise: Exercise) -> ExerciseDetail:
         level=exercise.level,
         instructions=exercise.instructions or [],
         attribution=exercise.attribution,
-        retired_at=exercise.retired_at,
+        retired_at=utc_(exercise.retired_at),
     )
 
 

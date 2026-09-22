@@ -4,9 +4,16 @@ Timestamps are UTC (naive internally, serialized with a Z suffix by the API
 layer). Weights are stored and returned exactly as entered: value + unit.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from pydantic import BaseModel, Field
+
+
+def utc(dt: datetime | None) -> datetime | None:
+    """Attach UTC to a naive stored datetime, for transport as ISO 8601."""
+    if dt is None:
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
 # --- Catalog -----------------------------------------------------------------
@@ -174,3 +181,13 @@ class InviteInfo(BaseModel):
     @property
     def is_pending(self) -> bool:  # pragma: no cover - trivial helper for UI
         return self.used_at is None and self.revoked_at is None
+
+
+class ApiKeyInfo(BaseModel):
+    id: int
+    label: str
+    key_prefix: str
+    scopes: list[str]
+    created_at: datetime
+    last_used_at: datetime | None = None
+    revoked_at: datetime | None = None
