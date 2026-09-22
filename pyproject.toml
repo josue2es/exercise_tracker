@@ -28,3 +28,25 @@ testpaths = ["tests"]
 
 [tool.uv]
 package = false
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "UP", "RUF"]
+ignore = [
+    "B008",    # FastAPI Depends() in defaults is the framework pattern
+    "DTZ",     # we deliberately store naive UTC (documented in db/models.py)
+    "BLE001",  # the auth middleware intentionally treats any storage error as logged-out
+    "RUF001",  # UI strings intentionally use × and – characters
+    "RUF002",
+    "RUF003",
+    "RUF059",  # unused unpacked fixture variables in tests are fine
+    "PLR0402",
+    "SIM117",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"db/migrations/versions/*" = ["E501", "W291"]
+"scripts/mcp_smoke_test.py" = ["E501"]
+"tests/*" = ["E501"]

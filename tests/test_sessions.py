@@ -69,7 +69,7 @@ def test_first_set_starts_session(workout_setup):
 
 
 def test_one_open_session_start_finishes_previous(workout_setup):
-    a, w1, w2, ex1, ex2, _ = workout_setup
+    a, w1, w2, ex1, _, _ = workout_setup
     sessions.log_set(ui_ctx(a), w1, ex1, reps=8, weight_value=80, weight_unit="kg")
     sessions.start_session(ui_ctx(a), w2)
     open_session = sessions.get_open_session(ui_ctx(a))

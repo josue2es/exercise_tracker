@@ -159,7 +159,7 @@ ui.run_with(
     favicon="/static/icon.svg",
 )
 
-import ui.pages  # noqa: E402,F401  (registers all @ui.page routes)
+import ui.pages  # noqa: E402  (registers all @ui.page routes)
 
 
 def main() -> None:

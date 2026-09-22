@@ -18,7 +18,7 @@ from db.models import ApiKey, User, utcnow
 from db.session import get_session
 from services.audit import record_audit
 from services.context import UserContext, agent_context
-from services.errors import AuthError, NotFoundError, ScopeError, ValidationError
+from services.errors import AuthError, NotFoundError, ValidationError
 from services.schemas import ApiKeyInfo, utc as utc_
 
 KEY_PREFIX = "gym_"
@@ -121,7 +121,12 @@ def resolve_key(raw_key: str) -> ResolvedKey:
     the REST API and the MCP server. Updates last_used_at at most once a
     minute per key.
     """
+    import logging
+
+    log = logging.getLogger("gym_tracker.api_keys")
+
     if not raw_key or not raw_key.startswith(KEY_PREFIX):
+        log.warning("Rejected API key (malformed)")
         raise AuthError("Invalid API key")
     key_hash = _hash_key(raw_key)
     with get_session() as session:
@@ -129,10 +134,14 @@ def resolve_key(raw_key: str) -> ResolvedKey:
             select(ApiKey).where(ApiKey.key_hash == key_hash)
         ).one_or_none()
         if row is None or row.revoked_at is not None:
+            log.warning(
+                "Rejected API key %s…", row.key_prefix if row else raw_key[:10]
+            )
             raise AuthError("Invalid API key")
         user = session.get(User, row.user_id)
         if user is None or not user.is_active:
             # Deactivating a user blocks all of their API keys.
+            log.warning("Rejected API key for deactivated account (user %s)", row.user_id)
             raise AuthError("This account has been deactivated")
 
         now = time.time()

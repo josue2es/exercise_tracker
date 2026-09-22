@@ -1,6 +1,5 @@
 """Tests for the users service: invites, first admin, login throttling, settings."""
 
-import time
 
 import pytest
 from sqlalchemy import select
@@ -12,12 +11,11 @@ from services.context import UserContext, ui_context
 from services.errors import (
     AuthError,
     ConflictError,
-    NotFoundError,
     RateLimitError,
     ScopeError,
     ValidationError,
 )
-from tests.conftest import make_user  # noqa: F401
+from tests.conftest import make_user
 
 
 @pytest.fixture(autouse=True)

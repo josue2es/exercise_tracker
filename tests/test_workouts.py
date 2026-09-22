@@ -104,14 +104,12 @@ def test_update_workout(engine, two_users):
 
 def test_isolation_other_user_and_admin(engine, two_users, exercise_ids):
     from db.session import get_session
-    from db.models import User
-    from sqlalchemy import select
 
     a, b = two_users
     w = workouts.create_workout(ui_ctx(a), "A's workout")
     workouts.set_workout_exercises(ui_ctx(a), w.id, _items(exercise_ids))
 
-    with get_session() as session:
+    with get_session():
         admin_id = make_user(email="admin2@example.com", role="admin")
 
     for other in (ui_ctx(b), UserContext(user_id=admin_id, role="admin", actor="ui")):

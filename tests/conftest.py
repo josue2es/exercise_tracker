@@ -1,7 +1,6 @@
 """Shared pytest fixtures: a temporary SQLite database per test."""
 
 import pytest
-from sqlalchemy import select
 
 from db import models
 from db.session import configure, get_session

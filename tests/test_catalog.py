@@ -69,7 +69,6 @@ def test_search_pagination(engine, user_id):
 
 
 def test_get_exercise_includes_retired(engine, user_id):
-    from datetime import datetime
 
     from db.models import Exercise
     from db.session import get_session

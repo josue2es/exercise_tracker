@@ -248,7 +248,7 @@ def test_error_shape_and_validation(client, user_a):
 
 
 def test_stats_summary(client, user_a, workout_of_a):
-    workout_id, a_key = workout_of_a
+    _, a_key = workout_of_a
     r = client.get(
         "/api/v1/stats/summary", headers=_headers(a_key), params={"date_from": "2020-01-01T00:00:00Z"}
     )
@@ -263,7 +263,7 @@ def test_audit_rows_for_api_writes(client, user_a, workout_of_a, engine):
     from db.session import get_session
     from sqlalchemy import select
 
-    workout_id, a_key = workout_of_a
+    _, a_key = workout_of_a
     client.post("/api/v1/workouts", headers=_headers(a_key), json={"name": "Audited"})
     with get_session() as session:
         actions = [row.action for row in session.scalars(select(AuditLog)).all()]

@@ -1,6 +1,6 @@
 """Tests for the stats service: last performance, history, training summary."""
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import pytest
 

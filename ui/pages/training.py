@@ -9,7 +9,7 @@ import services.sessions as sessions
 import services.stats as stats
 import services.workouts as workouts
 from services.errors import ServiceError
-from services.schemas import WorkoutDetail, WorkoutExerciseItem
+from services.schemas import WorkoutExerciseItem
 from ui.auth import current_context, current_user
 from ui.layout import page_shell
 

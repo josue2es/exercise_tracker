@@ -88,10 +88,12 @@ async def test_list_tools(mcp_app, mcp_lifespan, user_a):
     assert by_name["log_set"].annotations.destructive_hint is False
 
 
-async def test_bad_key_rejected(mcp_app, mcp_lifespan):
-    with pytest.raises(Exception):
-        async with _client(mcp_app, "gym_invalidkey0000000000000000000000000000000000000000000000000000"):
-            await client.list_tools()  # noqa: F821
+async def test_bad_key_rejected(engine, mcp_app, mcp_lifespan):
+    from mcp.shared.exceptions import MCPError
+
+    with pytest.raises(MCPError):
+        async with _client(mcp_app, "gym_invalidkey0000000000000000000000000000000000000000000000000000") as client:
+            await client.list_tools()
 
 
 async def test_search_exercises(mcp_app, mcp_lifespan, user_a):
@@ -104,7 +106,7 @@ async def test_search_exercises(mcp_app, mcp_lifespan, user_a):
 
 
 async def test_last_performance_and_log_set_flow(mcp_app, mcp_lifespan, user_a):
-    exercise_id = make_exercise(name="Bench Press")
+    make_exercise(name="Bench Press")
     workout = workouts.create_workout(ui_context(user_a), "Push")
 
     async with _client(mcp_app, _make_key(user_a, scopes=("read", "write"))) as client:

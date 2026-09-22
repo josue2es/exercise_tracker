@@ -4,7 +4,7 @@ Timestamps are UTC (naive internally, serialized with a Z suffix by the API
 layer). Weights are stored and returned exactly as entered: value + unit.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 
 from pydantic import BaseModel, Field
 
@@ -13,7 +13,7 @@ def utc(dt: datetime | None) -> datetime | None:
     """Attach UTC to a naive stored datetime, for transport as ISO 8601."""
     if dt is None:
         return None
-    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
 
 
 # --- Catalog -----------------------------------------------------------------

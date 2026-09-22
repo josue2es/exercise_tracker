@@ -13,7 +13,6 @@ the synchronous service layer via anyio.to_thread.run_sync so the event loop
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated
 
 import anyio.to_thread
 from fastmcp import FastMCP
@@ -43,9 +42,17 @@ class ApiKeyTokenVerifier(TokenVerifier):
     """Resolves gym_ Bearer tokens through the same service as the REST API."""
 
     async def verify_token(self, token: str) -> AccessToken | None:
+        import logging
+
+        log = logging.getLogger("gym_tracker.mcp")
         try:
             resolved = await anyio.to_thread.run_sync(api_keys.resolve_key, token)
         except AuthError:
+            return None
+        except Exception:
+            # Never leak server errors to the client; an unreachable key store
+            # behaves like an invalid token.
+            log.exception("MCP token verification failed")
             return None
         return AccessToken(
             token=token,

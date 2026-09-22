@@ -1,6 +1,6 @@
 """Login page."""
 
-from nicegui import app, run, ui
+from nicegui import run, ui
 
 import services.users as users
 from services.errors import ServiceError

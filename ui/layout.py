@@ -38,17 +38,17 @@ RECONNECT_BANNER_HTML = """
 """
 
 
-def handle_service_error(exc: ServiceError) -> None:
-    """Show a service error as a UI notification."""
-    ui.notify(str(exc), type="negative", position="top")
-
-
 def page_head() -> None:
     """Elements every page needs: reconnect banner, manifest and theme color."""
     ui.add_body_html(RECONNECT_BANNER_HTML)
     ui.add_head_html(
         '<link rel="manifest" href="/static/manifest.webmanifest">'
         '<meta name="theme-color" content="#1e293b">'
+        "<style>"
+        # Mobile rule: comfortable tap targets everywhere.
+        ".q-btn { min-height: 44px; }"
+        ".q-btn--dense { min-height: 40px; }"
+        "</style>"
     )
 
 

@@ -7,12 +7,11 @@ with offset, weights as {value, unit}, rep targets as {min, max}, cursor
 pagination with next_cursor, errors as {error, message}.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 
-import services.api_keys as api_keys
 import services.catalog as catalog
 import services.sessions as sessions
 import services.stats as stats
@@ -40,7 +39,7 @@ MAX_LIMIT = 50
 def _naive_utc(value: datetime) -> datetime:
     if value.tzinfo is None:
         return value
-    return value.astimezone(timezone.utc).replace(tzinfo=None)
+    return value.astimezone(UTC).replace(tzinfo=None)
 
 
 def _page_response(page: Page) -> dict:
@@ -236,7 +235,7 @@ def training_summary(
     summary = stats.get_training_summary(
         ctx,
         _naive_utc(date_from),
-        _naive_utc(date_to) if date_to else datetime.now(timezone.utc).replace(tzinfo=None),
+        _naive_utc(date_to) if date_to else datetime.now(UTC).replace(tzinfo=None),
     )
     return {
         "date_from": summary.date_from,

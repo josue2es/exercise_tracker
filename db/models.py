@@ -5,7 +5,7 @@ happens only when displaying. Lists are stored as JSON. Exercises are shared
 and read-only; owned tables all carry ``user_id``.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 
 from sqlalchemy import (
     JSON,
@@ -25,7 +25,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 def utcnow() -> datetime:
     """Naive UTC now (what we store in the database)."""
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class Base(DeclarativeBase):

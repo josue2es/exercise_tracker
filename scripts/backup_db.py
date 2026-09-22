@@ -9,7 +9,6 @@ storage only logs people out.
 from __future__ import annotations
 
 import logging
-import shutil
 import sqlite3
 import subprocess
 import sys
