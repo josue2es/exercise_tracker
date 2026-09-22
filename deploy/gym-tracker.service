@@ -1,0 +1,19 @@
+[Unit]
+Description=Gym Tracker (NiceGUI UI + REST API + MCP server)
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/exercise_tracker
+EnvironmentFile=/home/ubuntu/exercise_tracker/.env
+ExecStart=/home/ubuntu/exercise_tracker/.venv/bin/python -m app
+Restart=on-failure
+RestartSec=3
+
+# Logs go to journald (stderr/stdout are captured automatically).
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,9 @@
+[Unit]
+Description=Gym Tracker nightly database backup
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/home/ubuntu/exercise_tracker
+EnvironmentFile=/home/ubuntu/exercise_tracker/.env
+ExecStart=/home/ubuntu/exercise_tracker/.venv/bin/python -m scripts.backup_db

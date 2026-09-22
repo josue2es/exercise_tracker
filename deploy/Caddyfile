@@ -1,0 +1,30 @@
+# Gym Tracker — Caddy site block for gym.api-mcp.com
+#
+# The Cloudflare DNS record stays DNS-only, so Caddy terminates TLS and sees
+# real client IPs (used by the agent allowlist and login throttling).
+#
+# Replace AGENT_IPS below with the fixed server IPs of the local LLM agents
+# (comma-separated CIDRs are allowed). Agents on this host can call
+# 127.0.0.1:8080 directly; the app still enforces API keys.
+
+gym.api-mcp.com {
+	encode zstd gzip
+
+	# HSTS and standard security headers.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# Agent endpoints are restricted to the allowlist; the UI stays public.
+	@agents_unauthorized {
+		path /api/* /api/docs /mcp*
+		not remote_ip 127.0.0.1 ::1 AGENT_IPS
+	}
+	respond @agents_unauthorized 403
+
+	reverse_proxy 127.0.0.1:8080
+}

@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     # uvicorn bind address (Caddy proxies to this).
     bind_host: str = "127.0.0.1"
     bind_port: int = 8080
+    # Optional rsync target for off-server backup copies (Hetzner VPS).
+    backup_rsync_target: str | None = None
 
     @property
     def database_url(self) -> str:
