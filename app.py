@@ -12,8 +12,9 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from starlette.concurrency import run_in_threadpool
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from api.router import router as api_router, service_error_handler
 from config import settings
@@ -92,7 +93,23 @@ def healthz() -> dict:
     return {"status": "ok"}
 
 
-app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
+class MediaFiles(StaticFiles):
+    """Exercise media with explicit caching: files may be cached for a day, but
+    a 404 is never cached, so a miss (e.g. during a media refresh or rename)
+    can't linger in browsers or at Cloudflare once the file exists."""
+
+    async def get_response(self, path: str, scope):
+        try:
+            response = await super().get_response(path, scope)
+        except StarletteHTTPException as exc:
+            if exc.status_code != 404:
+                raise
+            return PlainTextResponse("Not Found", status_code=404, headers={"Cache-Control": "no-store"})
+        response.headers["Cache-Control"] = "public, max-age=86400"
+        return response
+
+
+app.mount("/media", MediaFiles(directory=MEDIA_DIR), name="media")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 # --- MCP server -------------------------------------------------------------------

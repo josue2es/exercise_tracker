@@ -30,6 +30,9 @@ def _show_invite_link_dialog(link: str) -> None:
 @ui.page("/admin", title="Admin — Gym Tracker")
 async def admin_page():
     ctx = current_context()
+    if not ctx.is_admin:
+        ui.navigate.to("/")
+        return
 
     with page_shell("Admin"):
         with ui.card().classes("w-full"):
@@ -70,7 +73,7 @@ async def admin_page():
                 if not invites:
                     ui.label("No invites yet.").classes("text-sm text-gray-500")
                 for invite in invites:
-                    from db.models import utcnow
+                    from datetime import UTC, datetime
 
                     status = (
                         "used"
@@ -78,7 +81,7 @@ async def admin_page():
                         else "revoked"
                         if invite.revoked_at
                         else "expired"
-                        if invite.expires_at < utcnow()
+                        if invite.expires_at < datetime.now(UTC)  # expires_at is UTC-aware
                         else "pending"
                     )
                     with ui.row().classes(

@@ -36,7 +36,9 @@ def login_page():
             ui.notify(str(exc), type="negative", position="top")
             return
         login_user(user.id)
-        ui.navigate.to(next_path if next_path.startswith("/") else "/")
+        # Only same-site paths: "//host" and "/\\host" are protocol-relative URLs.
+        safe = next_path.startswith("/") and not next_path.startswith(("//", "/\\"))
+        ui.navigate.to(next_path if safe else "/")
 
     with ui.column().classes("max-w-sm mx-auto w-full px-6 py-12 gap-4 self-center"):
         from ui.layout import page_head

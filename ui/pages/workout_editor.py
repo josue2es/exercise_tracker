@@ -8,6 +8,7 @@ import services.workouts as workouts
 from services.errors import ServiceError, ValidationError
 from services.schemas import ExerciseSummary, WorkoutExerciseItem
 from ui.auth import current_context
+from ui.components.exercise_details import open_exercise_dialog
 from ui.components.picker import exercise_picker
 from ui.layout import page_shell
 
@@ -60,7 +61,7 @@ async def new_workout_page():
     await _editor_page(workout_id=None)
 
 
-@ui.page("/workouts/{workout_id}/edit", title="Edit workout — Gym Tracker")
+@ui.page("/workouts/{workout_id:int}/edit", title="Edit workout — Gym Tracker")
 async def edit_workout_page(workout_id: int):
     await _editor_page(workout_id=workout_id)
 
@@ -76,7 +77,9 @@ async def _editor_page(workout_id: int | None):
 
     with page_shell("Workout editor"):
         name_input = ui.input("Workout name", value=state.name).props("outlined dense").classes("w-full")
-        notes_input = ui.input("Notes", value=state.notes).props("outlined dense").classes("w-full")
+        notes_input = (
+            ui.textarea("Notes", value=state.notes).props("outlined dense autogrow").classes("w-full")
+        )
 
         rows_container = ui.column().classes("w-full gap-2")
 
@@ -86,7 +89,14 @@ async def _editor_page(workout_id: int | None):
                 for index, row in enumerate(state.rows):
                     with ui.card().classes("w-full p-3"):
                         with ui.row().classes("items-center justify-between w-full"):
-                            ui.label(f"{index + 1}. {row.exercise_name}").classes("font-semibold text-sm")
+                            with ui.row().classes("items-center gap-1 no-wrap"):
+                                ui.label(f"{index + 1}.").classes("font-semibold text-sm")
+                                # A dialog, not navigation: leaving the page would lose unsaved edits.
+                                ui.label(row.exercise_name).classes(
+                                    "font-semibold text-sm text-primary cursor-pointer"
+                                ).on(
+                                    "click", lambda eid=row.exercise_id: open_exercise_dialog(ctx, eid)
+                                ).mark(f"row-name-{row.exercise_id}")
                             with ui.row().classes("gap-0"):
                                 def move_up(i=index):
                                     if i > 0:
@@ -116,8 +126,8 @@ async def _editor_page(workout_id: int | None):
                             ui.number("Max reps", value=row.target_reps_max, min=1, max=100, step=1).bind_value(
                                 row, "target_reps_max"
                             ).props("outlined dense inputmode=numeric").style("max-width: 5.5rem")
-                        ui.input("Comment", value=row.comment).bind_value(row, "comment").props(
-                            "outlined dense"
+                        ui.textarea("Comment", value=row.comment).bind_value(row, "comment").props(
+                            "outlined dense autogrow"
                         ).classes("w-full")
 
         async def open_picker():
@@ -128,7 +138,17 @@ async def _editor_page(workout_id: int | None):
                 state.rows.append(EditorRow(exercise_id=exercise.id, exercise_name=exercise.name))
                 render_rows()
 
-            await exercise_picker(ctx, on_pick, close_label="Add to workout")
+            def on_remove(exercise: ExerciseSummary):
+                state.rows[:] = [r for r in state.rows if r.exercise_id != exercise.id]
+                render_rows()
+
+            await exercise_picker(
+                ctx,
+                on_pick,
+                selected_ids=lambda: {r.exercise_id for r in state.rows},
+                on_remove=on_remove,
+                close_label="Done",
+            )
 
         async def save():
             name = name_input.value.strip()
@@ -153,7 +173,8 @@ async def _editor_page(workout_id: int | None):
                     detail = await run.io_bound(workouts.create_workout, ctx, name, notes or None)
                     state.workout_id = detail.id
                 else:
-                    await run.io_bound(workouts.update_workout, ctx, state.workout_id, name, notes or None)
+                    # Pass "" (not None) so clearing the notes field clears them.
+                    await run.io_bound(workouts.update_workout, ctx, state.workout_id, name, notes)
                 await run.io_bound(workouts.set_workout_exercises, ctx, state.workout_id, items)
             except (ServiceError, ValidationError) as exc:
                 ui.notify(str(exc), type="negative", position="top")

@@ -66,7 +66,7 @@ async def home_page():
                             f"{w.exercise_count} exercises · last performed "
                             f"{_fmt_date(w.last_performed_at, user.time_zone)}"
                         ).classes("text-sm text-gray-500")
-                        with ui.row().classes("w-full justify-end gap-2 mt-1"):
+                        with ui.row().classes("w-full justify-center gap-2 mt-1"):
                             def train(workout_id=w.id):
                                 ui.navigate.to(f"/workouts/{workout_id}")
 

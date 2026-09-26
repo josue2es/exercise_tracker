@@ -28,7 +28,7 @@ import services.stats as stats
 import services.workouts as workouts
 from services.context import UserContext
 from services.errors import AuthError, ServiceError
-from services.schemas import Weight
+from services.schemas import Weight, WorkoutExerciseItem
 
 SEARCH_LIMIT = 10
 HISTORY_LIMIT = 5
@@ -399,15 +399,15 @@ async def create_workout(
         for position, spec in enumerate(exercises):
             resolved = await _resolve_exercise(str(spec["exercise"]))
             items.append(
-                {
-                    "exercise_id": resolved.id,
-                    "exercise_name": resolved.name,
-                    "position": position,
-                    "target_sets": int(spec.get("sets", 3)),
-                    "target_reps_min": int(spec.get("reps_min", 8)),
-                    "target_reps_max": int(spec.get("reps_max", spec.get("reps_min", 12))),
-                    "comment": spec.get("comment"),
-                }
+                WorkoutExerciseItem(
+                    exercise_id=resolved.id,
+                    exercise_name=resolved.name,
+                    position=position,
+                    target_sets=int(spec.get("sets", 3)),
+                    target_reps_min=int(spec.get("reps_min", 8)),
+                    target_reps_max=int(spec.get("reps_max", spec.get("reps_min", 12))),
+                    comment=spec.get("comment"),
+                )
             )
         detail = await _call(workouts.set_workout_exercises, ctx, detail.id, items)
         lines.append(f"{len(items)} exercises added: " + ", ".join(e.exercise_name for e in detail.exercises))
@@ -437,15 +437,15 @@ async def update_workout(
         for position, spec in enumerate(exercises):
             resolved = await _resolve_exercise(str(spec["exercise"]))
             items.append(
-                {
-                    "exercise_id": resolved.id,
-                    "exercise_name": resolved.name,
-                    "position": position,
-                    "target_sets": int(spec.get("sets", 3)),
-                    "target_reps_min": int(spec.get("reps_min", 8)),
-                    "target_reps_max": int(spec.get("reps_max", spec.get("reps_min", 12))),
-                    "comment": spec.get("comment"),
-                }
+                WorkoutExerciseItem(
+                    exercise_id=resolved.id,
+                    exercise_name=resolved.name,
+                    position=position,
+                    target_sets=int(spec.get("sets", 3)),
+                    target_reps_min=int(spec.get("reps_min", 8)),
+                    target_reps_max=int(spec.get("reps_max", spec.get("reps_min", 12))),
+                    comment=spec.get("comment"),
+                )
             )
         detail = await _call(workouts.set_workout_exercises, ctx, workout_id, items)
         lines.append(f"Exercise list replaced with {len(items)} exercises.")

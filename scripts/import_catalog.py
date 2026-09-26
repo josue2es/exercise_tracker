@@ -28,6 +28,8 @@ from db.models import Exercise, ImportRun
 from db.session import configure, get_session
 
 FREE_DB_SOURCE = "free_exercise_db"
+# Directory under the media root (served at /media/<dir>/); hyphenated, unlike the source id.
+FREE_DB_MEDIA_DIR = "free-exercise-db"
 EXERCISEDB_SOURCE = "exercisedb_v1"
 
 FREE_DB_JSON_URL = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/dist/exercises.json"
@@ -77,7 +79,7 @@ def transform_free(raw: dict) -> dict:
     primary = raw.get("primaryMuscles") or []
     secondary = raw.get("secondaryMuscles") or []
     media = [
-        {"type": "image", "url": f"/media/free-exercise-db/{quote(image)}"}
+        {"type": "image", "url": f"/media/{FREE_DB_MEDIA_DIR}/{quote(image)}"}
         for image in (raw.get("images") or [])
     ]
     return {
@@ -247,7 +249,7 @@ def download_free_db_images(
             if rel is None:
                 errors.append(f"skipped unsafe image path: {image!r}")
                 continue
-            dest = media_root / FREE_DB_SOURCE / rel
+            dest = media_root / FREE_DB_MEDIA_DIR / rel
             if not dest.exists():
                 targets.append((image, dest))
 

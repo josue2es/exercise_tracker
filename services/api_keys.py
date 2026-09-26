@@ -145,7 +145,8 @@ def resolve_key(raw_key: str) -> ResolvedKey:
             raise AuthError("This account has been deactivated")
 
         now = time.time()
-        last_used = row.last_used_at.timestamp() if row.last_used_at else 0
+        # Stored naive UTC: attach UTC, or .timestamp() would assume server-local time.
+        last_used = utc_(row.last_used_at).timestamp() if row.last_used_at else 0
         if now - last_used >= LAST_USED_UPDATE_INTERVAL:
             row.last_used_at = utcnow()
 

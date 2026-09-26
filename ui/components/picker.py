@@ -4,6 +4,7 @@ Used from the workout editor; the caller passes an ``on_pick`` callback so
 several exercises can be added before closing.
 """
 
+from collections.abc import Callable, Collection
 from dataclasses import dataclass, field
 
 from nicegui import run, ui
@@ -11,6 +12,8 @@ from nicegui import run, ui
 from services.context import UserContext
 from services.errors import ServiceError
 from services.schemas import ExerciseSummary
+from ui.components.exercise_details import open_exercise_dialog
+from ui.components.media import exercise_image, thumbnail_url
 
 PAGE_SIZE = 30
 SEARCH_DEBOUNCE_S = 0.3
@@ -39,14 +42,31 @@ def _filter_options(ctx):
     return filter_options(ctx)
 
 
-async def exercise_picker(ctx: UserContext, on_pick, *, close_label: str = "Done") -> None:
-    """Open the picker dialog. ``on_pick(exercise)`` is called per selection."""
+async def exercise_picker(
+    ctx: UserContext,
+    on_pick,
+    *,
+    selected_ids: Callable[[], Collection[int]] | None = None,
+    on_remove=None,
+    close_label: str = "Done",
+) -> None:
+    """Open the picker dialog. ``on_pick(exercise)`` is called per selection.
+
+    If ``selected_ids`` is given, exercises already selected show as added;
+    tapping an added exercise calls ``on_remove(exercise)`` when provided.
+    """
     state = PickerState()
     options = await run.io_bound(_filter_options, ctx)
 
     with ui.dialog().props("maximized") as dialog, ui.card().classes("w-full h-full no-shadow"):
         with ui.column().classes("w-full h-full p-4 gap-3"):
-            ui.label("Add exercises").classes("text-xl font-bold")
+            title = ui.label().classes("text-xl font-bold")
+
+            def _update_title():
+                count = len(selected_ids()) if selected_ids else 0
+                title.text = f"Add exercises ({count} added)" if count else "Add exercises"
+
+            _update_title()
 
             results_container = ui.scroll_area().classes("w-full grow")
 
@@ -76,6 +96,31 @@ async def exercise_picker(ctx: UserContext, on_pick, *, close_label: str = "Done
                 state.cursor = int(page.next_cursor) if page.next_cursor else None
                 _render_results()
 
+            def _toggle_button(ex: ExerciseSummary):
+                """'+' adds; once added it shows a check, and tapping it again removes."""
+                button = ui.button().props("round dense unelevated").mark(f"pick-{ex.id}")
+                with button:
+                    tooltip = ui.tooltip()
+
+                def refresh():
+                    added = selected_ids is not None and ex.id in selected_ids()
+                    button.props(f"icon={'check' if added else 'add'} color={'positive' if added else 'primary'}")
+                    tooltip.text = ("Remove" if on_remove else "Added") if added else "Add"
+                    # Without on_remove, an added exercise can't be toggled back.
+                    button.set_enabled(not added or on_remove is not None)
+
+                def toggle():
+                    if selected_ids is not None and ex.id in selected_ids():
+                        if on_remove is not None:
+                            on_remove(ex)
+                    else:
+                        on_pick(ex)
+                    refresh()
+                    _update_title()
+
+                button.on_click(toggle)
+                refresh()
+
             def _render_results():
                 with results_container:
                     results_container.clear()
@@ -84,20 +129,25 @@ async def exercise_picker(ctx: UserContext, on_pick, *, close_label: str = "Done
                             ui.label("No matching exercises.").classes("text-gray-500 p-4")
                         for ex in state.results:
                             with ui.card().classes("w-full p-2"):
-                                with ui.row().classes("items-center gap-3"):
-                                    _thumbnail(ex)
-                                    with ui.column().classes("grow gap-0"):
-                                        ui.label(ex.name).classes("font-medium text-sm")
-                                        detail = ", ".join(
-                                            filter(
-                                                None,
-                                                [", ".join(ex.primary_muscles[:2]), ", ".join(ex.equipment[:2])],
+                                with ui.row().classes("items-center gap-3 w-full no-wrap"):
+                                    # Thumbnail/name open details in a dialog over the picker.
+                                    with (
+                                        ui.row()
+                                        .classes("items-center gap-3 grow no-wrap cursor-pointer")
+                                        .on("click", lambda ex=ex: open_exercise_dialog(ctx, ex.id))
+                                        .mark(f"details-{ex.id}")
+                                    ):
+                                        exercise_image(thumbnail_url(ex.media), 56)
+                                        with ui.column().classes("grow gap-0"):
+                                            ui.label(ex.name).classes("font-medium text-sm")
+                                            detail = ", ".join(
+                                                filter(
+                                                    None,
+                                                    [", ".join(ex.primary_muscles[:2]), ", ".join(ex.equipment[:2])],
+                                                )
                                             )
-                                        )
-                                        ui.label(detail).classes("text-xs text-gray-500")
-                                    ui.button(icon="add", on_click=lambda ex=ex: on_pick(ex)).props(
-                                        "round dense unelevated color=primary"
-                                    ).tooltip("Add")
+                                            ui.label(detail).classes("text-xs text-gray-500")
+                                    _toggle_button(ex)
                         if state.more_available:
                             ui.button("Load more", on_click=lambda: run_search(False)).props(
                                 "outline"
@@ -117,9 +167,9 @@ async def exercise_picker(ctx: UserContext, on_pick, *, close_label: str = "Done
                 trailing_events=True,
             )
 
-            def _set_filter(name: str, value):
+            async def _set_filter(name: str, value):
                 setattr(state, name, value or None)
-                run_search(True)
+                await run_search(True)
 
             with ui.row().classes("w-full gap-2 wrap"):
                 ui.select(
@@ -145,15 +195,7 @@ async def exercise_picker(ctx: UserContext, on_pick, *, close_label: str = "Done
                 ui.button(close_label, on_click=dialog.close).props("unelevated")
 
         await run_search(True)
+    # A fresh dialog is built per open; drop it once closed so stale ones don't pile up.
+    dialog.on_value_change(lambda e: dialog.delete() if not e.value else None)
     dialog.open()
 
-
-def _thumbnail(ex: ExerciseSummary) -> None:
-    url = next((m.url for m in ex.media if m.type == "image"), None)
-    if url:
-        ui.html(
-            f'<img src="{url}" loading="lazy" style="width:56px;height:56px;object-fit:cover;'
-            f'border-radius:8px;background:#e2e8f0" alt="">'
-        )
-    else:
-        ui.icon("fitness_center").classes("text-3xl text-gray-400")

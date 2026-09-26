@@ -43,7 +43,7 @@ def _to_item(log: SetLog) -> SetLogItem:
         weight=Weight(value=log.weight_value, unit=log.weight_unit)
         if log.weight_value is not None
         else None,
-        logged_at=log.logged_at,
+        logged_at=utc_(log.logged_at),
     )
 
 

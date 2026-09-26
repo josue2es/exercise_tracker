@@ -1,5 +1,5 @@
 """Training screen: log weight and reps per set, seeing the last session's
-numbers. Each set saves on its own tap so nothing is lost on bad signal."""
+numbers. Each exercise has a single Save that persists all its sets at once."""
 
 from dataclasses import dataclass, field
 
@@ -31,7 +31,7 @@ def _fmt_last(perf) -> str:
     return f"Last · {local.strftime('%b %d')}: {parts}"
 
 
-@ui.page("/workouts/{workout_id}", title="Training — Gym Tracker")
+@ui.page("/workouts/{workout_id:int}", title="Training — Gym Tracker")
 async def training_page(workout_id: int):
     ctx = current_context()
     user = current_user()
@@ -45,15 +45,16 @@ async def training_page(workout_id: int):
 
     open_session = await run.io_bound(sessions.get_open_session, ctx)
     if open_session and open_session.workout_id != workout_id:
-        with page_shell("Training"):
-            ui.notify(
-                f"You have an open session for “{open_session.workout_name}”. "
-                "Saving a set here will finish it.",
-                type="warning",
-                position="top",
-            )
+        ui.notify(
+            f"You have an open session for “{open_session.workout_name}”. "
+            "Saving a set here will finish it.",
+            type="warning",
+            position="top",
+        )
     if open_session is None or open_session.workout_id != workout_id:
         open_session = None  # training screen shows a fresh start
+    # The session this screen logs into; set by the first saved set if none is open.
+    session_id = open_session.id if open_session else None
 
     @dataclass
     class SetRow:
@@ -63,6 +64,10 @@ async def training_page(workout_id: int):
         reps: int | None = None
         saved: bool = False
         set_id: int | None = None
+        # Values as last persisted; a saved row is "dirty" (needs update_set)
+        # when weight/reps drift from these.
+        orig_weight: float | None = None
+        orig_reps: int | None = None
 
     @dataclass
     class ExerciseBlock:
@@ -93,6 +98,8 @@ async def training_page(workout_id: int):
                             reps=existing.reps,
                             saved=True,
                             set_id=existing.id,
+                            orig_weight=existing.weight.value if existing.weight else None,
+                            orig_reps=existing.reps,
                         )
                     )
                 else:
@@ -139,8 +146,8 @@ async def training_page(workout_id: int):
 
         async def do_finish():
             try:
-                if open_session is not None:
-                    await run.io_bound(sessions.finish_session, ctx, open_session.id)
+                if session_id is not None:
+                    await run.io_bound(sessions.finish_session, ctx, session_id)
             except ServiceError as exc:
                 ui.notify(str(exc), type="negative", position="top")
                 return
@@ -200,7 +207,65 @@ async def training_page(workout_id: int):
                     )
                     _render_blocks()
 
-                ui.button("Add set", icon="add", on_click=add_row).props("outline dense").classes("w-full")
+                async def save_block(block=block):
+                    """One save for the whole exercise: log new sets and persist
+                    edits to already-saved ones."""
+                    nonlocal session_id
+                    for row in block.rows:
+                        if row.reps is None:
+                            ui.notify(f"Set {row.set_number}: enter reps first", type="warning", position="top")
+                            return
+                    saved_new = updated = 0
+                    try:
+                        for row in block.rows:
+                            if not row.saved:
+                                item = await run.io_bound(
+                                    sessions.log_set,
+                                    ctx,
+                                    workout.id,
+                                    block.item.exercise_id,
+                                    int(row.reps),
+                                    row.weight,
+                                    row.unit if row.weight is not None else None,
+                                    row.set_number,
+                                )
+                                row.saved = True
+                                row.set_id = item.id
+                                row.orig_weight, row.orig_reps = row.weight, row.reps
+                                session_id = item.session_id
+                                saved_new += 1
+                            elif (row.weight, row.reps) != (row.orig_weight, row.orig_reps):
+                                await run.io_bound(
+                                    sessions.update_set,
+                                    ctx,
+                                    row.set_id,
+                                    int(row.reps),
+                                    row.weight,
+                                    row.unit if row.weight is not None else None,
+                                    True,  # set_weight
+                                )
+                                row.orig_weight, row.orig_reps = row.weight, row.reps
+                                updated += 1
+                    except ServiceError as exc:
+                        ui.notify(str(exc), type="negative", position="top")
+                        _render_blocks()
+                        return
+                    if session_id is not None:
+                        state_label.text = "open session"
+                    if saved_new or updated:
+                        message = f"{saved_new} set{'s' if saved_new != 1 else ''} saved"
+                        if updated:
+                            message += f", {updated} updated"
+                        ui.notify(message, type="positive", position="top")
+                    else:
+                        ui.notify("Nothing to save", type="info", position="top")
+                    _render_blocks()
+
+                with ui.row().classes("w-full gap-2"):
+                    ui.button("Add set", icon="add", on_click=add_row).props("outline dense").classes("grow")
+                    ui.button("Save", icon="save", on_click=save_block).props(
+                        "unelevated dense color=primary"
+                    ).classes("grow").mark(f"save-block-{block.item.exercise_id}")
 
         def _render_set_row(block: ExerciseBlock, row: SetRow):
             with ui.row().classes("w-full items-center gap-1"):
@@ -215,6 +280,7 @@ async def training_page(workout_id: int):
                     .props("outlined dense inputmode=decimal standout no-label")
                     .style("max-width: 6.5rem")
                     .tooltip("Weight (empty = bodyweight)")
+                    .bind_value_to(row, "weight")  # typed values survive re-renders
                 )
                 with ui.column().classes("gap-0"):
                     step = WEIGHT_STEPS.get(row.unit, 2.5)
@@ -229,28 +295,13 @@ async def training_page(workout_id: int):
                     .props("outlined dense inputmode=numeric no-label")
                     .style("max-width: 4.5rem")
                     .tooltip("Reps")
+                    .bind_value_to(row, "reps")
                 )
                 with ui.column().classes("gap-0"):
                     ui.button(icon="add", on_click=lambda: _bump(reps_input, 1)).props("flat dense size=xs")
                     ui.button(icon="remove", on_click=lambda: _bump(reps_input, -1)).props("flat dense size=xs")
 
                 if row.saved:
-
-                    async def do_edit(row=row):
-                        try:
-                            await run.io_bound(
-                                sessions.update_set,
-                                ctx,
-                                row.set_id,
-                                int(reps_input.value or 0),
-                                weight_input.value,
-                                row.unit if weight_input.value is not None else None,
-                                True,  # set_weight
-                            )
-                        except ServiceError as exc:
-                            ui.notify(str(exc), type="negative", position="top")
-                            return
-                        ui.notify("Set updated", type="positive", position="top")
 
                     async def do_delete(row=row):
                         try:
@@ -262,44 +313,11 @@ async def training_page(workout_id: int):
                             b.rows = [r for r in b.rows if r.set_id != row.set_id]
                         _render_blocks()
 
-                    ui.button(icon="check_circle", on_click=do_edit).props(
-                        "flat round dense color=green"
-                    ).tooltip("Save changes")
                     ui.button(icon="delete", on_click=do_delete).props(
                         "flat round dense color=red"
                     ).tooltip("Delete set")
                 else:
-
-                    async def do_save(block=block, row=row):
-                        if reps_input.value is None:
-                            ui.notify("Enter reps first", type="warning", position="top")
-                            return
-                        weight_value = weight_input.value
-                        try:
-                            item = await run.io_bound(
-                                sessions.log_set,
-                                ctx,
-                                workout.id,
-                                block.item.exercise_id,
-                                int(reps_input.value),
-                                weight_value,
-                                row.unit if weight_value is not None else None,
-                                row.set_number,
-                            )
-                        except ServiceError as exc:
-                            ui.notify(str(exc), type="negative", position="top")
-                            return
-                        row.saved = True
-                        row.set_id = item.id
-                        row.weight = weight_value
-                        row.reps = int(reps_input.value)
-                        state_label.text = "open session"
-                        ui.notify(f"Set {row.set_number} saved", type="positive", position="top")
-                        _render_blocks()
-
-                    ui.button("Save", icon="save", on_click=do_save).props(
-                        "unelevated dense color=primary"
-                    ).tooltip("Save this set")
+                    ui.icon("radio_button_unchecked").classes("text-gray-400").tooltip("Not saved yet")
 
         def _bump(number_input, delta: float):
             current = number_input.value or 0
