@@ -8,6 +8,9 @@ everything in one file.
 
 - **People** log in with email + password (invite-only; Argon2id; login
   throttling).
+- **Workout UI**: plan workouts with a searchable exercise picker (filters,
+  thumbnails, tap for instructions), log sets with one save per exercise, and
+  review history; exercise images open full-size.
 - **Agents** authenticate with per-user API keys (`Authorization: Bearer gym_…`)
   against both REST and MCP. Read keys can't write; nobody can delete through
   REST or MCP.
@@ -64,7 +67,7 @@ downloads ~1,700 images for free-exercise-db):
 
 ```bash
 uv run python -m app        # binds 127.0.0.1:8080 (see BIND_HOST/BIND_PORT)
-uv run pytest               # 99 tests
+uv run pytest               # 103 tests
 ```
 
 ## Deployment (Oracle ARM VPS + Caddy)
@@ -146,8 +149,9 @@ Every write through REST or MCP is recorded in the audit log.
   still visible in history), never deleted.
 - Sessions idle for over 6 hours close lazily the next time they're read.
 - Tests cover user isolation (user B and admins get 404 for user A's data),
-  key scopes, one-open-session, lazy idle close, retry-safe set logging, and
-  the import pagination stop conditions.
+  key scopes, one-open-session, lazy idle close, retry-safe set logging, the
+  import pagination stop conditions, and the main UI flows (picker add/remove,
+  detail dialog, lightbox, training save) via headless NiceGUI simulation.
 
 ## Runbook
 
