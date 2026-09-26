@@ -9,3 +9,6 @@ __pycache__/
 
 # Data
 data/
+
+# NiceGUI runtime storage (sessions)
+.nicegui/
