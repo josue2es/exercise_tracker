@@ -43,10 +43,14 @@ def login_page():
 
         page_head()
         ui.label("Gym Tracker").classes("text-2xl font-bold text-center")
-        email = ui.input("Email", autocomplete="email").props("type=email").classes("w-full")
-        password = ui.input(
-            "Password", password=True, password_toggle_button=True, autocomplete="current-password"
-        ).classes("w-full")
+        # NiceGUI's `autocomplete=` kwarg is a suggestion list, not the HTML
+        # attribute; passing a string crashes the input on the first keystroke.
+        email = ui.input("Email").props("type=email autocomplete=email").classes("w-full")
+        password = (
+            ui.input("Password", password=True, password_toggle_button=True)
+            .props("autocomplete=current-password")
+            .classes("w-full")
+        )
         ui.button("Log in", on_click=do_login).classes("w-full").props("unelevated size=md")
         email.on("keydown.enter", do_login)
         password.on("keydown.enter", do_login)

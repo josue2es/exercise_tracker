@@ -30,13 +30,18 @@ def invite_page(token: str):
         ui.label("You were invited to Gym Tracker. Choose a name and a password (10+ characters).").classes(
             "text-sm text-gray-500 text-center"
         )
-        name = ui.input("Your name", autocomplete="name").classes("w-full")
-        password = ui.input(
-            "Password", password=True, password_toggle_button=True, autocomplete="new-password"
-        ).classes("w-full")
-        confirm = ui.input(
-            "Repeat password", password=True, password_toggle_button=True, autocomplete="new-password"
-        ).classes("w-full")
+        # HTML autocomplete goes in props; NiceGUI's `autocomplete=` kwarg is a suggestion list.
+        name = ui.input("Your name").props("autocomplete=name").classes("w-full")
+        password = (
+            ui.input("Password", password=True, password_toggle_button=True)
+            .props("autocomplete=new-password")
+            .classes("w-full")
+        )
+        confirm = (
+            ui.input("Repeat password", password=True, password_toggle_button=True)
+            .props("autocomplete=new-password")
+            .classes("w-full")
+        )
         ui.button("Create account", on_click=accept).classes("w-full").props("unelevated size=md")
         name.on("keydown.enter", lambda: password.focus())
         password.on("keydown.enter", lambda: confirm.focus())

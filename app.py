@@ -25,6 +25,8 @@ log = logging.getLogger("gym_tracker")
 MEDIA_DIR = Path(settings.database_path).resolve().parent / "media"
 MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -91,7 +93,7 @@ def healthz() -> dict:
 
 
 app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
-app.mount("/static", StaticFiles(directory=Path("static")), name="static")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 # --- MCP server -------------------------------------------------------------------
 # The public endpoint must be exactly /mcp. Two traps: FastMCP's own path
@@ -128,7 +130,7 @@ def manifest():
     """Web app manifest at the root, so it can be added to the home screen."""
     from fastapi.responses import FileResponse
 
-    return FileResponse("static/manifest.webmanifest", media_type="application/manifest+json")
+    return FileResponse(STATIC_DIR / "manifest.webmanifest", media_type="application/manifest+json")
 
 
 # --- NiceGUI UI -----------------------------------------------------------------
@@ -156,7 +158,7 @@ ui.run_with(
     },
     reconnect_timeout=30.0,
     show_welcome_message=False,
-    favicon="/static/icon.svg",
+    favicon=STATIC_DIR / "icon.svg",
 )
 
 import ui.pages  # noqa: E402  (registers all @ui.page routes)
