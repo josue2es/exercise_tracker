@@ -2,6 +2,7 @@
   "name": "Gym Tracker",
   "short_name": "Gym",
   "start_url": "/",
+  "lang": "es",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#1e293b",

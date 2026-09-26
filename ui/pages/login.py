@@ -5,6 +5,7 @@ from nicegui import run, ui
 import services.users as users
 from services.errors import ServiceError
 from ui.auth import login_user
+from ui.i18n import error_message
 
 
 def _client_ip() -> str:
@@ -20,7 +21,7 @@ def _client_ip() -> str:
     return request.client.host if request.client else "unknown"
 
 
-@ui.page("/login", title="Log in — Gym Tracker")
+@ui.page("/login", title="Iniciar sesión — Gym Tracker")
 def login_page():
     from nicegui.storage import request_contextvar
 
@@ -33,7 +34,7 @@ def login_page():
                 users.authenticate, email.value, password.value, _client_ip()
             )
         except ServiceError as exc:
-            ui.notify(str(exc), type="negative", position="top")
+            ui.notify(error_message(exc), type="negative", position="top")
             return
         login_user(user.id)
         # Only same-site paths: "//host" and "/\\host" are protocol-relative URLs.
@@ -47,12 +48,12 @@ def login_page():
         ui.label("Gym Tracker").classes("text-2xl font-bold text-center")
         # NiceGUI's `autocomplete=` kwarg is a suggestion list, not the HTML
         # attribute; passing a string crashes the input on the first keystroke.
-        email = ui.input("Email").props("type=email autocomplete=email").classes("w-full")
+        email = ui.input("Correo electrónico").props("type=email autocomplete=email").classes("w-full")
         password = (
-            ui.input("Password", password=True, password_toggle_button=True)
+            ui.input("Contraseña", password=True, password_toggle_button=True)
             .props("autocomplete=current-password")
             .classes("w-full")
         )
-        ui.button("Log in", on_click=do_login).classes("w-full").props("unelevated size=md")
+        ui.button("Entrar", on_click=do_login).classes("w-full").props("unelevated size=md")
         email.on("keydown.enter", do_login)
         password.on("keydown.enter", do_login)

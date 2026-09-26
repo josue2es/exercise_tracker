@@ -94,7 +94,7 @@ def test_single_save_per_exercise(stub_services):
 
             # Saving with an empty set warns and logs nothing.
             user.find(marker="save-block-7").click()
-            await user.should_see("enter reps first")
+            await user.should_see("primero indica las reps")
             assert stub_services["log"] == []
 
             # Fill both rows: weight 60, reps 8 and 10.
@@ -102,16 +102,16 @@ def test_single_save_per_exercise(stub_services):
             _type(user, numbers[0], "60"), _type(user, numbers[1], "8")
             _type(user, numbers[2], "60"), _type(user, numbers[3], "10")
             user.find(marker="save-block-7").click()
-            await user.should_see("2 sets saved")
+            await user.should_see("2 series guardadas")
             assert stub_services["log"] == [
                 (7, 8, 60.0, "kg", 1),
                 (7, 10, 60.0, "kg", 2),
             ]
-            await user.should_see("open session")
+            await user.should_see("sesión abierta")
 
             # Saving again without changes does nothing new.
             user.find(marker="save-block-7").click()
-            await user.should_see("Nothing to save")
+            await user.should_see("No hay nada que guardar")
             assert len(stub_services["log"]) == 2
             assert stub_services["update"] == []
 
@@ -119,7 +119,7 @@ def test_single_save_per_exercise(stub_services):
             numbers = _set_numbers(user)
             _type(user, numbers[1], "9")  # row 1 reps: 8 -> 9
             user.find(marker="save-block-7").click()
-            await user.should_see("1 updated")
+            await user.should_see("1 actualizada")
             assert len(stub_services["log"]) == 2
             assert stub_services["update"] == [(100, 9, 60.0, "kg", True)]
 

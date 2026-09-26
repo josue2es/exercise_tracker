@@ -10,6 +10,7 @@ from services.schemas import ExerciseSummary, WorkoutExerciseItem
 from ui.auth import current_context
 from ui.components.exercise_details import open_exercise_dialog
 from ui.components.picker import exercise_picker
+from ui.i18n import error_message
 from ui.layout import page_shell
 
 DEFAULT_SETS = 3
@@ -56,12 +57,12 @@ def _load_state(ctx, workout_id: int | None) -> EditorState:
     )
 
 
-@ui.page("/workouts/new", title="New workout — Gym Tracker")
+@ui.page("/workouts/new", title="Nueva rutina — Gym Tracker")
 async def new_workout_page():
     await _editor_page(workout_id=None)
 
 
-@ui.page("/workouts/{workout_id:int}/edit", title="Edit workout — Gym Tracker")
+@ui.page("/workouts/{workout_id:int}/edit", title="Editar rutina — Gym Tracker")
 async def edit_workout_page(workout_id: int):
     await _editor_page(workout_id=workout_id)
 
@@ -71,14 +72,14 @@ async def _editor_page(workout_id: int | None):
     try:
         state = await run.io_bound(_load_state, ctx, workout_id)
     except ServiceError as exc:
-        ui.notify(str(exc), type="negative", position="top")
+        ui.notify(error_message(exc), type="negative", position="top")
         ui.navigate.to("/")
         return
 
-    with page_shell("Workout editor"):
-        name_input = ui.input("Workout name", value=state.name).props("outlined dense").classes("w-full")
+    with page_shell("Editor de rutina"):
+        name_input = ui.input("Nombre de la rutina", value=state.name).props("outlined dense").classes("w-full")
         notes_input = (
-            ui.textarea("Notes", value=state.notes).props("outlined dense autogrow").classes("w-full")
+            ui.textarea("Notas", value=state.notes).props("outlined dense autogrow").classes("w-full")
         )
 
         rows_container = ui.column().classes("w-full gap-2")
@@ -117,23 +118,23 @@ async def _editor_page(workout_id: int | None):
                                 ui.button(icon="close", on_click=remove).props("flat round dense color=red")
 
                         with ui.row().classes("items-end gap-2 w-full wrap"):
-                            ui.number("Sets", value=row.target_sets, min=1, max=20, step=1).bind_value(
+                            ui.number("Series", value=row.target_sets, min=1, max=20, step=1).bind_value(
                                 row, "target_sets"
                             ).props("outlined dense inputmode=numeric").style("max-width: 5rem")
-                            ui.number("Min reps", value=row.target_reps_min, min=1, max=100, step=1).bind_value(
+                            ui.number("Reps mín.", value=row.target_reps_min, min=1, max=100, step=1).bind_value(
                                 row, "target_reps_min"
                             ).props("outlined dense inputmode=numeric").style("max-width: 5.5rem")
-                            ui.number("Max reps", value=row.target_reps_max, min=1, max=100, step=1).bind_value(
+                            ui.number("Reps máx.", value=row.target_reps_max, min=1, max=100, step=1).bind_value(
                                 row, "target_reps_max"
                             ).props("outlined dense inputmode=numeric").style("max-width: 5.5rem")
-                        ui.textarea("Comment", value=row.comment).bind_value(row, "comment").props(
+                        ui.textarea("Comentario", value=row.comment).bind_value(row, "comment").props(
                             "outlined dense autogrow"
                         ).classes("w-full")
 
         async def open_picker():
             def on_pick(exercise: ExerciseSummary):
                 if any(r.exercise_id == exercise.id for r in state.rows):
-                    ui.notify("Already in this workout", type="warning", position="top")
+                    ui.notify("Ya está en esta rutina", type="warning", position="top")
                     return
                 state.rows.append(EditorRow(exercise_id=exercise.id, exercise_name=exercise.name))
                 render_rows()
@@ -147,14 +148,14 @@ async def _editor_page(workout_id: int | None):
                 on_pick,
                 selected_ids=lambda: {r.exercise_id for r in state.rows},
                 on_remove=on_remove,
-                close_label="Done",
+                close_label="Listo",
             )
 
         async def save():
             name = name_input.value.strip()
             notes = notes_input.value.strip()
             if not name:
-                ui.notify("Please enter a workout name", type="negative", position="top")
+                ui.notify("Escribe un nombre para la rutina", type="negative", position="top")
                 return
             items = [
                 WorkoutExerciseItem(
@@ -177,14 +178,14 @@ async def _editor_page(workout_id: int | None):
                     await run.io_bound(workouts.update_workout, ctx, state.workout_id, name, notes)
                 await run.io_bound(workouts.set_workout_exercises, ctx, state.workout_id, items)
             except (ServiceError, ValidationError) as exc:
-                ui.notify(str(exc), type="negative", position="top")
+                ui.notify(error_message(exc), type="negative", position="top")
                 return
-            ui.notify("Workout saved", type="positive", position="top")
+            ui.notify("Rutina guardada", type="positive", position="top")
             ui.navigate.to("/")
 
         render_rows()
 
-        ui.button("Add exercise", icon="add", on_click=open_picker).props("outline").classes("w-full")
+        ui.button("Agregar ejercicio", icon="add", on_click=open_picker).props("outline").classes("w-full")
         with ui.row().classes("w-full gap-2"):
-            ui.button("Save", icon="save", on_click=save).props("unelevated").classes("grow")
-            ui.button("Cancel", on_click=lambda: ui.navigate.to("/")).props("flat")
+            ui.button("Guardar", icon="save", on_click=save).props("unelevated").classes("grow")
+            ui.button("Cancelar", on_click=lambda: ui.navigate.to("/")).props("flat")
