@@ -1,21 +1,20 @@
 """Workouts home page: cards with name, exercise count, last performed date."""
 
 from datetime import datetime
-from zoneinfo import ZoneInfo
 
 from nicegui import run, ui
 
 import services.workouts as workouts
 from services.errors import ServiceError
 from ui.auth import current_context, current_user
+from ui.i18n import error_message, fmt_date
 from ui.layout import page_shell
 
 
 def _fmt_date(value: datetime | None, tz_name: str) -> str:
     if value is None:
-        return "never"
-    local = value.replace(tzinfo=ZoneInfo("UTC")).astimezone(ZoneInfo(tz_name))
-    return local.strftime("%b %d, %Y")
+        return "nunca"
+    return fmt_date(value, tz_name)
 
 
 @ui.page("/", title="Gym Tracker")
@@ -23,18 +22,18 @@ async def home_page():
     ctx = current_context()
     user = current_user()
 
-    with page_shell("Workouts"):
-        ui.label("Workouts").classes("text-2xl font-bold")
+    with page_shell("Rutinas"):
+        ui.label("Rutinas").classes("text-2xl font-bold")
         ui.button(
-            "New workout",
+            "Nueva rutina",
             icon="add",
             on_click=lambda: ui.navigate.to("/workouts/new"),
         ).props("unelevated").classes("w-full")
 
         def _confirm_delete(workout_id: int, name: str):
             with ui.dialog() as dialog, ui.card():
-                ui.label(f"Delete “{name}”?").classes("text-lg font-semibold")
-                ui.label("The workout plan is removed, but all logged sessions and sets are kept.").classes(
+                ui.label(f"¿Eliminar «{name}»?").classes("text-lg font-semibold")
+                ui.label("Se elimina la rutina, pero se conservan todas las sesiones y series registradas.").classes(
                     "text-sm text-gray-500"
                 )
 
@@ -42,15 +41,15 @@ async def home_page():
                     try:
                         await run.io_bound(workouts.delete_workout, ctx, workout_id)
                     except ServiceError as exc:
-                        ui.notify(str(exc), type="negative", position="top")
+                        ui.notify(error_message(exc), type="negative", position="top")
                         return
                     dialog.close()
-                    ui.notify("Workout deleted", type="positive", position="top")
+                    ui.notify("Rutina eliminada", type="positive", position="top")
                     await render()
 
                 with ui.row().classes("w-full justify-end gap-2"):
-                    ui.button("Cancel", on_click=dialog.close).props("flat")
-                    ui.button("Delete", icon="delete", on_click=do_delete).props("unelevated color=red")
+                    ui.button("Cancelar", on_click=dialog.close).props("flat")
+                    ui.button("Eliminar", icon="delete", on_click=do_delete).props("unelevated color=red")
             dialog.open()
 
         async def render():
@@ -58,12 +57,12 @@ async def home_page():
             with container:
                 items = await run.io_bound(workouts.list_workouts, ctx)
                 if not items:
-                    ui.label("No workouts yet. Create your first one!").classes("text-gray-500 mt-4")
+                    ui.label("Aún no tienes rutinas. ¡Crea la primera!").classes("text-gray-500 mt-4")
                 for w in items:
                     with ui.card().classes("w-full"):
                         ui.label(w.name).classes("text-lg font-semibold")
                         ui.label(
-                            f"{w.exercise_count} exercises · last performed "
+                            f"{w.exercise_count} ejercicios · última vez: "
                             f"{_fmt_date(w.last_performed_at, user.time_zone)}"
                         ).classes("text-sm text-gray-500")
                         with ui.row().classes("w-full justify-center gap-2 mt-1"):
@@ -76,11 +75,11 @@ async def home_page():
                             def delete(workout_id=w.id, name=w.name):
                                 _confirm_delete(workout_id, name)
 
-                            ui.button("Train", icon="play_arrow", on_click=train).props(
+                            ui.button("Entrenar", icon="play_arrow", on_click=train).props(
                                 "unelevated dense color=primary"
-                            ).tooltip("Start or continue this workout")
-                            ui.button("Edit", icon="edit", on_click=edit).props("outline dense")
-                            ui.button("Delete", icon="delete", on_click=delete).props(
+                            ).tooltip("Empezar o continuar esta rutina")
+                            ui.button("Editar", icon="edit", on_click=edit).props("outline dense")
+                            ui.button("Eliminar", icon="delete", on_click=delete).props(
                                 "outline dense color=red"
                             )
 

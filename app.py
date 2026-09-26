@@ -176,6 +176,7 @@ ui.run_with(
     reconnect_timeout=30.0,
     show_welcome_message=False,
     favicon=STATIC_DIR / "icon.svg",
+    language="es",
 )
 
 import ui.pages  # noqa: E402  (registers all @ui.page routes)

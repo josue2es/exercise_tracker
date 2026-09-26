@@ -11,6 +11,7 @@ import services.workouts as workouts
 from services.errors import ServiceError
 from services.schemas import WorkoutExerciseItem
 from ui.auth import current_context, current_user
+from ui.i18n import error_message, fmt_date
 from ui.layout import page_shell
 
 WEIGHT_STEPS = {"kg": 2.5, "lb": 5.0}
@@ -18,20 +19,17 @@ WEIGHT_STEPS = {"kg": 2.5, "lb": 5.0}
 
 def _fmt_set(weight_value, weight_unit, reps) -> str:
     if weight_value is None:
-        return f"bw×{reps}"
+        return f"PC×{reps}"
     return f"{weight_value:g}×{reps} {weight_unit}"
 
 
 def _fmt_last(perf) -> str:
-    from zoneinfo import ZoneInfo
-
     user = current_user()
-    local = perf.session_date.replace(tzinfo=ZoneInfo("UTC")).astimezone(ZoneInfo(user.time_zone))
     parts = ", ".join(_fmt_set(s.weight and s.weight.value, s.weight and s.weight.unit, s.reps) for s in perf.sets)
-    return f"Last · {local.strftime('%b %d')}: {parts}"
+    return f"Última · {fmt_date(perf.session_date, user.time_zone, year=False)}: {parts}"
 
 
-@ui.page("/workouts/{workout_id:int}", title="Training — Gym Tracker")
+@ui.page("/workouts/{workout_id:int}", title="Entrenamiento — Gym Tracker")
 async def training_page(workout_id: int):
     ctx = current_context()
     user = current_user()
@@ -39,15 +37,15 @@ async def training_page(workout_id: int):
     try:
         workout = await run.io_bound(workouts.get_workout, ctx, workout_id)
     except ServiceError as exc:
-        ui.notify(str(exc), type="negative", position="top")
+        ui.notify(error_message(exc), type="negative", position="top")
         ui.navigate.to("/")
         return
 
     open_session = await run.io_bound(sessions.get_open_session, ctx)
     if open_session and open_session.workout_id != workout_id:
         ui.notify(
-            f"You have an open session for “{open_session.workout_name}”. "
-            "Saving a set here will finish it.",
+            f"Tienes una sesión abierta de «{open_session.workout_name}». "
+            "Si guardas una serie aquí, se terminará.",
             type="warning",
             position="top",
         )
@@ -73,7 +71,7 @@ async def training_page(workout_id: int):
     class ExerciseBlock:
         item: WorkoutExerciseItem
         rows: list[SetRow] = field(default_factory=list)
-        last_line: str = "No history yet"
+        last_line: str = "Aún sin historial"
 
     async def build_blocks() -> list[ExerciseBlock]:
         blocks = []
@@ -130,18 +128,18 @@ async def training_page(workout_id: int):
                 ExerciseBlock(
                     item=item,
                     rows=rows,
-                    last_line=_fmt_last(perf) if perf else "No history yet",
+                    last_line=_fmt_last(perf) if perf else "Aún sin historial",
                 )
             )
         return blocks
 
     blocks = await build_blocks()
 
-    with page_shell("Training"):
+    with page_shell("Entrenamiento"):
         with ui.row().classes("w-full items-center justify-between"):
             ui.label(workout.name).classes("text-2xl font-bold")
             state_label = ui.label(
-                "open session" if open_session else "not started"
+                "sesión abierta" if open_session else "sin empezar"
             ).classes("text-xs text-gray-500 self-end")
 
         async def do_finish():
@@ -149,12 +147,12 @@ async def training_page(workout_id: int):
                 if session_id is not None:
                     await run.io_bound(sessions.finish_session, ctx, session_id)
             except ServiceError as exc:
-                ui.notify(str(exc), type="negative", position="top")
+                ui.notify(error_message(exc), type="negative", position="top")
                 return
-            ui.notify("Workout finished. Great job!", type="positive", position="top")
+            ui.notify("Rutina terminada. ¡Buen trabajo!", type="positive", position="top")
             ui.navigate.to("/")
 
-        ui.button("Finish workout", icon="flag", on_click=do_finish).props("unelevated color=positive").classes(
+        ui.button("Terminar rutina", icon="flag", on_click=do_finish).props("unelevated color=positive").classes(
             "w-full"
         )
 
@@ -171,7 +169,7 @@ async def training_page(workout_id: int):
                 with ui.row().classes("w-full items-center justify-between"):
                     ui.label(block.item.exercise_name).classes("font-semibold")
                     ui.button(
-                        "How to",
+                        "Cómo se hace",
                         icon="help_outline",
                         on_click=lambda exercise_id=block.item.exercise_id: ui.navigate.to(
                             f"/exercises/{exercise_id}"
@@ -186,7 +184,7 @@ async def training_page(workout_id: int):
                         else ""
                     )
                 )
-                ui.label(f"Target: {target}").classes("text-sm text-gray-500")
+                ui.label(f"Objetivo: {target}").classes("text-sm text-gray-500")
                 if block.item.comment:
                     ui.label(block.item.comment).classes("text-sm text-gray-500 italic")
                 ui.label(block.last_line).classes("text-sm text-blue-600")
@@ -213,7 +211,9 @@ async def training_page(workout_id: int):
                     nonlocal session_id
                     for row in block.rows:
                         if row.reps is None:
-                            ui.notify(f"Set {row.set_number}: enter reps first", type="warning", position="top")
+                            ui.notify(
+                                f"Serie {row.set_number}: primero indica las reps", type="warning", position="top"
+                            )
                             return
                     saved_new = updated = 0
                     try:
@@ -247,23 +247,24 @@ async def training_page(workout_id: int):
                                 row.orig_weight, row.orig_reps = row.weight, row.reps
                                 updated += 1
                     except ServiceError as exc:
-                        ui.notify(str(exc), type="negative", position="top")
+                        ui.notify(error_message(exc), type="negative", position="top")
                         _render_blocks()
                         return
                     if session_id is not None:
-                        state_label.text = "open session"
+                        state_label.text = "sesión abierta"
                     if saved_new or updated:
-                        message = f"{saved_new} set{'s' if saved_new != 1 else ''} saved"
+                        plural = "s" if saved_new != 1 else ""
+                        message = f"{saved_new} serie{plural} guardada{plural}"
                         if updated:
-                            message += f", {updated} updated"
+                            message += f", {updated} actualizada{'s' if updated != 1 else ''}"
                         ui.notify(message, type="positive", position="top")
                     else:
-                        ui.notify("Nothing to save", type="info", position="top")
+                        ui.notify("No hay nada que guardar", type="info", position="top")
                     _render_blocks()
 
                 with ui.row().classes("w-full gap-2"):
-                    ui.button("Add set", icon="add", on_click=add_row).props("outline dense").classes("grow")
-                    ui.button("Save", icon="save", on_click=save_block).props(
+                    ui.button("Agregar serie", icon="add", on_click=add_row).props("outline dense").classes("grow")
+                    ui.button("Guardar", icon="save", on_click=save_block).props(
                         "unelevated dense color=primary"
                     ).classes("grow").mark(f"save-block-{block.item.exercise_id}")
 
@@ -272,14 +273,14 @@ async def training_page(workout_id: int):
                 ui.badge(f"{row.set_number}").props("dense")
                 weight_input = (
                     ui.number(
-                        "Weight",
+                        "Peso",
                         value=row.weight,
                         step=WEIGHT_STEPS.get(row.unit, 2.5),
                         min=0,
                     )
                     .props("outlined dense inputmode=decimal standout no-label")
                     .style("max-width: 6.5rem")
-                    .tooltip("Weight (empty = bodyweight)")
+                    .tooltip("Peso (vacío = peso corporal)")
                     .bind_value_to(row, "weight")  # typed values survive re-renders
                 )
                 with ui.column().classes("gap-0"):
@@ -307,7 +308,7 @@ async def training_page(workout_id: int):
                         try:
                             await run.io_bound(sessions.delete_set, ctx, row.set_id)
                         except ServiceError as exc:
-                            ui.notify(str(exc), type="negative", position="top")
+                            ui.notify(error_message(exc), type="negative", position="top")
                             return
                         for b in blocks:
                             b.rows = [r for r in b.rows if r.set_id != row.set_id]
@@ -315,9 +316,9 @@ async def training_page(workout_id: int):
 
                     ui.button(icon="delete", on_click=do_delete).props(
                         "flat round dense color=red"
-                    ).tooltip("Delete set")
+                    ).tooltip("Eliminar serie")
                 else:
-                    ui.icon("radio_button_unchecked").classes("text-gray-400").tooltip("Not saved yet")
+                    ui.icon("radio_button_unchecked").classes("text-gray-400").tooltip("Aún no guardada")
 
         def _bump(number_input, delta: float):
             current = number_input.value or 0

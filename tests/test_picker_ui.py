@@ -96,7 +96,7 @@ def test_picker_toggles_added_state(stub_catalog):
             user.find(marker="pick-1").click()
             assert selected == [1]
             assert _icon(user, 1) == "check"
-            await user.should_see("Add exercises (1 added)")
+            await user.should_see("Agregar ejercicios (1 agregado)")
 
             user.find(marker="pick-2").click()
             user.find(marker="pick-1").click()  # tapping an added exercise removes it
@@ -109,9 +109,9 @@ def test_picker_toggles_added_state(stub_catalog):
             await user.should_see("Grab the bar")
             (title,) = user.find(marker="detail-title").elements
             assert title.text == "Ab Roller"
-            await user.should_see("barbell")
+            await user.should_see("barra")  # equipment term shown in Spanish
             user.find(marker="detail-close").click()
-            await user.should_see("Add exercises (1 added)")
+            await user.should_see("Agregar ejercicios (1 agregado)")
 
     asyncio.run(scenario())
 
@@ -131,7 +131,7 @@ def test_editor_add_and_remove_flow(stub_catalog, monkeypatch):
     async def scenario():
         async with user_simulation(root) as user:
             await user.open("/")
-            user.find("Add exercise").click()
+            user.find("Agregar ejercicio").click()
             await user.should_see("Pull-up")
             user.find(marker="pick-1").click()
             user.find(marker="pick-2").click()
@@ -139,7 +139,7 @@ def test_editor_add_and_remove_flow(stub_catalog, monkeypatch):
 
             user.find(marker="pick-1").click()  # remove from within the picker
             assert _row_names(user) == ["Pull-up"]
-            user.find("Done").click()
+            user.find("Listo").click()
 
             # The row's close button removes it too.
             (close,) = [b for b in user.find(ui.button).elements if b.props.get("icon") == "close"]
@@ -147,10 +147,10 @@ def test_editor_add_and_remove_flow(stub_catalog, monkeypatch):
             await user.should_not_see("Pull-up")
 
             # Reopening shows a fresh picker (the closed one was deleted) with nothing added.
-            user.find("Add exercise").click()
+            user.find("Agregar ejercicio").click()
             await user.should_see("Pull-up")
             assert _icon(user, 2) == "add"
-            await user.should_not_see("added)")
+            await user.should_not_see("agregado")
 
     asyncio.run(scenario())
 

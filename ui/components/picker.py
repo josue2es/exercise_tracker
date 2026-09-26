@@ -14,6 +14,7 @@ from services.errors import ServiceError
 from services.schemas import ExerciseSummary
 from ui.components.exercise_details import open_exercise_dialog
 from ui.components.media import exercise_image, thumbnail_url
+from ui.i18n import error_message, term, terms
 
 PAGE_SIZE = 30
 SEARCH_DEBOUNCE_S = 0.3
@@ -28,6 +29,11 @@ class PickerState:
     cursor: int | None = None
     results: list[ExerciseSummary] = field(default_factory=list)
     more_available: bool = False
+
+
+def _term_options(values: list[str]) -> dict[str, str]:
+    """Select options for catalog terms: raw value -> Spanish label, sorted by label."""
+    return {"": "Todos", **dict(sorted(((v, term(v)) for v in values), key=lambda kv: kv[1]))}
 
 
 def _search_exercises(ctx, **kwargs):
@@ -48,7 +54,7 @@ async def exercise_picker(
     *,
     selected_ids: Callable[[], Collection[int]] | None = None,
     on_remove=None,
-    close_label: str = "Done",
+    close_label: str = "Listo",
 ) -> None:
     """Open the picker dialog. ``on_pick(exercise)`` is called per selection.
 
@@ -64,7 +70,8 @@ async def exercise_picker(
 
             def _update_title():
                 count = len(selected_ids()) if selected_ids else 0
-                title.text = f"Add exercises ({count} added)" if count else "Add exercises"
+                added = "agregado" if count == 1 else "agregados"
+                title.text = f"Agregar ejercicios ({count} {added})" if count else "Agregar ejercicios"
 
             _update_title()
 
@@ -86,7 +93,7 @@ async def exercise_picker(
                         cursor=state.cursor,
                     )
                 except ServiceError as exc:
-                    ui.notify(str(exc), type="negative", position="top")
+                    ui.notify(error_message(exc), type="negative", position="top")
                     return
                 if reset:
                     state.results = list(page.items)
@@ -105,7 +112,7 @@ async def exercise_picker(
                 def refresh():
                     added = selected_ids is not None and ex.id in selected_ids()
                     button.props(f"icon={'check' if added else 'add'} color={'positive' if added else 'primary'}")
-                    tooltip.text = ("Remove" if on_remove else "Added") if added else "Add"
+                    tooltip.text = ("Quitar" if on_remove else "Agregado") if added else "Agregar"
                     # Without on_remove, an added exercise can't be toggled back.
                     button.set_enabled(not added or on_remove is not None)
 
@@ -126,7 +133,7 @@ async def exercise_picker(
                     results_container.clear()
                     with ui.column().classes("w-full gap-2 p-1"):
                         if not state.results:
-                            ui.label("No matching exercises.").classes("text-gray-500 p-4")
+                            ui.label("No hay ejercicios que coincidan.").classes("text-gray-500 p-4")
                         for ex in state.results:
                             with ui.card().classes("w-full p-2"):
                                 with ui.row().classes("items-center gap-3 w-full no-wrap"):
@@ -143,18 +150,18 @@ async def exercise_picker(
                                             detail = ", ".join(
                                                 filter(
                                                     None,
-                                                    [", ".join(ex.primary_muscles[:2]), ", ".join(ex.equipment[:2])],
+                                                    [terms(ex.primary_muscles[:2]), terms(ex.equipment[:2])],
                                                 )
                                             )
                                             ui.label(detail).classes("text-xs text-gray-500")
                                     _toggle_button(ex)
                         if state.more_available:
-                            ui.button("Load more", on_click=lambda: run_search(False)).props(
+                            ui.button("Cargar más", on_click=lambda: run_search(False)).props(
                                 "outline"
                             ).classes("w-full")
 
             search = (
-                ui.input(placeholder="Search exercises…").props("clearable outlined dense").classes("w-full")
+                ui.input(placeholder="Buscar ejercicios…").props("clearable outlined dense").classes("w-full")
             )
             # Keep state.query in sync on every keystroke, but only run the
             # search on a debounced (300 ms) trailing event.
@@ -173,21 +180,21 @@ async def exercise_picker(
 
             with ui.row().classes("w-full gap-2 wrap"):
                 ui.select(
-                    [""] + options["muscles"],
+                    _term_options(options["muscles"]),
                     value="",
-                    label="Muscle",
+                    label="Músculo",
                     on_change=lambda e: _set_filter("muscle", e.value),
                 ).props("dense outlined").classes("min-w-32 grow")
                 ui.select(
-                    [""] + options["equipment"],
+                    _term_options(options["equipment"]),
                     value="",
-                    label="Equipment",
+                    label="Equipo",
                     on_change=lambda e: _set_filter("equipment", e.value),
                 ).props("dense outlined").classes("min-w-32 grow")
                 ui.select(
-                    {**{s: s.replace("_", " ") for s in options["sources"]}, "": "All sources"},
+                    {**{s: s.replace("_", " ") for s in options["sources"]}, "": "Todas las fuentes"},
                     value="",
-                    label="Source",
+                    label="Fuente",
                     on_change=lambda e: _set_filter("source", e.value),
                 ).props("dense outlined").classes("min-w-32 grow")
 

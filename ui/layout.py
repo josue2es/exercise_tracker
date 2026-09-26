@@ -10,7 +10,7 @@ RECONNECT_BANNER_HTML = """
 <div id="gym-reconnect-banner" role="status"
      style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;
             background:#b91c1c;color:#fff;text-align:center;padding:10px;
-            font-weight:600;font-family:sans-serif;">Reconnecting...</div>
+            font-weight:600;font-family:sans-serif;">Reconectando...</div>
 <script>
 (function () {
   var attempts = 0;
@@ -18,15 +18,15 @@ RECONNECT_BANNER_HTML = """
     if (window.socket && window.socket.io) {
       window.socket.io.on('reconnect_attempt', function () {
         var b = document.getElementById('gym-reconnect-banner');
-        if (b) { b.style.display = 'block'; b.textContent = 'Reconnecting...'; }
+        if (b) { b.style.display = 'block'; b.textContent = 'Reconectando...'; }
       });
       window.socket.on('connect', function () {
         var b = document.getElementById('gym-reconnect-banner');
-        if (b) { b.style.display = 'none'; b.textContent = 'Reconnecting...'; }
+        if (b) { b.style.display = 'none'; b.textContent = 'Reconectando...'; }
       });
       window.socket.io.on('reconnect_failed', function () {
         var b = document.getElementById('gym-reconnect-banner');
-        if (b) { b.textContent = 'Connection lost. Please reload the page.'; b.style.display = 'block'; }
+        if (b) { b.textContent = 'Se perdió la conexión. Recarga la página.'; b.style.display = 'block'; }
       });
       return true;
     }
@@ -65,20 +65,20 @@ def page_shell(title: str):
     with ui.header().classes("items-center justify-between px-4 py-2"):
         ui.button(icon="home", on_click=lambda: ui.navigate.to("/")).props(
             "flat round dense color=white"
-        ).tooltip("Workouts")
+        ).tooltip("Rutinas")
         ui.label("Gym Tracker").classes("text-base font-bold")
         with ui.row().classes("gap-1"):
             if user and user.role == "admin":
                 ui.button(icon="admin_panel_settings", on_click=lambda: ui.navigate.to("/admin")).props(
                     "flat round dense color=white"
-                ).tooltip("Admin")
+                ).tooltip("Administración")
             ui.button(icon="settings", on_click=lambda: ui.navigate.to("/settings")).props(
                 "flat round dense color=white"
-            ).tooltip("Settings")
+            ).tooltip("Ajustes")
             ui.button(
                 icon="logout",
                 on_click=lambda: (_logout(), ui.navigate.to("/login")),
-            ).props("flat round dense color=white").tooltip("Log out")
+            ).props("flat round dense color=white").tooltip("Cerrar sesión")
 
     return ui.column().classes("max-w-xl mx-auto w-full px-3 py-4 gap-4")
 
