@@ -1,5 +1,6 @@
-"""Headless UI tests (NiceGUI User simulation): the training screen's single
-save-per-exercise flow — logging new sets, updating edited ones, validation."""
+"""Headless UI tests (NiceGUI User simulation): the training screen's compact
+line per exercise, the "Detallar" per-set view, and the single save at the end
+of the routine — logging new sets, updating/deleting edited ones, validation."""
 
 import asyncio
 from contextlib import contextmanager
@@ -50,7 +51,7 @@ class _FakeUser:
 
 @pytest.fixture
 def stub_services(monkeypatch):
-    calls = {"log": [], "update": []}
+    calls = {"log": [], "update": [], "delete": [], "finish": []}
     ids = iter(range(100, 200))
 
     def fake_log(ctx, workout_id, exercise_id, reps, weight, unit, set_number):
@@ -65,14 +66,19 @@ def stub_services(monkeypatch):
     monkeypatch.setattr(training.stats, "get_last_performance", lambda ctx, eid, sid: None)
     monkeypatch.setattr(training.sessions, "log_set", fake_log)
     monkeypatch.setattr(training.sessions, "update_set", fake_update)
+    monkeypatch.setattr(training.sessions, "delete_set", lambda ctx, set_id: calls["delete"].append(set_id))
+    monkeypatch.setattr(
+        training.sessions, "finish_session", lambda ctx, session_id: calls["finish"].append(session_id)
+    )
     monkeypatch.setattr(training, "current_context", lambda: None)
     monkeypatch.setattr(training, "current_user", lambda: _FakeUser())
     monkeypatch.setattr(training, "page_shell", _shell)
     return calls
 
 
-def _set_numbers(user):
-    """The set-row number inputs in creation order (weight, reps per row)."""
+def _numbers(user):
+    """The number inputs in creation order: (weight, reps, sets) on the compact
+    line, (weight, reps) per set in the detailed view."""
     return sorted(user.find(ui.number).elements, key=lambda e: e.id)
 
 
@@ -83,44 +89,63 @@ def _type(user, element, text):
     UserInteraction(user, {element}, None).type(text)
 
 
-def test_single_save_per_exercise(stub_services):
-    async def root():
-        await training.training_page(1)
+async def _root():
+    await training.training_page(1)
 
+
+def test_compact_line_saves_all_sets(stub_services):
     async def scenario():
-        async with user_simulation(root) as user:
+        async with user_simulation(_root) as user:
             await user.open("/")
             await user.should_see("Bench Press")
 
-            # Saving with an empty set warns and logs nothing.
-            user.find(marker="save-block-7").click()
+            # Saving with empty reps warns and logs nothing.
+            user.find(marker="save-all").click()
             await user.should_see("primero indica las reps")
             assert stub_services["log"] == []
 
-            # Fill both rows: weight 60, reps 8 and 10.
-            numbers = _set_numbers(user)
-            _type(user, numbers[0], "60"), _type(user, numbers[1], "8")
-            _type(user, numbers[2], "60"), _type(user, numbers[3], "10")
-            user.find(marker="save-block-7").click()
+            # One line for all sets: 60 kg × 8, series prefilled with the target (2).
+            weight, reps, num_sets = _numbers(user)
+            assert num_sets.value == 2
+            _type(user, weight, "60"), _type(user, reps, "8")
+            user.find(marker="save-all").click()
             await user.should_see("2 series guardadas")
-            assert stub_services["log"] == [
-                (7, 8, 60.0, "kg", 1),
-                (7, 10, 60.0, "kg", 2),
-            ]
+            assert stub_services["log"] == [(7, 8, 60.0, "kg", 1), (7, 8, 60.0, "kg", 2)]
             await user.should_see("sesión abierta")
 
             # Saving again without changes does nothing new.
-            user.find(marker="save-block-7").click()
+            user.find(marker="save-all").click()
             await user.should_see("No hay nada que guardar")
-            assert len(stub_services["log"]) == 2
-            assert stub_services["update"] == []
+            assert len(stub_services["log"]) == 2 and stub_services["update"] == []
 
-            # Editing a saved set and saving updates just that set.
-            numbers = _set_numbers(user)
-            _type(user, numbers[1], "9")  # row 1 reps: 8 -> 9
-            user.find(marker="save-block-7").click()
-            await user.should_see("1 actualizada")
-            assert len(stub_services["log"]) == 2
+            # Editing the line updates every set; fewer series deletes the extra one.
+            weight, reps, num_sets = _numbers(user)
+            _type(user, reps, "9"), _type(user, num_sets, "1")
+            user.find(marker="save-all").click()
+            await user.should_see("1 actualizada, 1 eliminada")
+            assert stub_services["delete"] == [101]
             assert stub_services["update"] == [(100, 9, 60.0, "kg", True)]
+
+    asyncio.run(scenario())
+
+
+def test_detail_view_per_set(stub_services):
+    async def scenario():
+        async with user_simulation(_root) as user:
+            await user.open("/")
+            weight, reps, _ = _numbers(user)
+            _type(user, weight, "50"), _type(user, reps, "10")
+
+            # Detallar expands the line into one row per set, prefilled from it.
+            user.find(marker="detail-7").click()
+            numbers = _numbers(user)
+            assert [n.value for n in numbers] == [50, 10, 50, 10]
+            _type(user, numbers[2], "55"), _type(user, numbers[3], "8")
+
+            # Terminar rutina saves pending sets, then closes the session.
+            user.find(marker="finish").click()
+            await user.should_see("Rutina terminada")
+            assert stub_services["log"] == [(7, 10, 50.0, "kg", 1), (7, 8, 55.0, "kg", 2)]
+            assert stub_services["finish"] == [55]
 
     asyncio.run(scenario())
