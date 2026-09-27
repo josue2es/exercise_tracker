@@ -248,3 +248,34 @@ def test_script_migrates_a_database_from_before_the_overlay(tmp_path, capsys):
 
     assert tc.main(["--db", str(db_path), "status"]) == 0
     assert "exercises:    0" in capsys.readouterr().out
+
+
+def test_import_csv_accepts_excel_format(engine, tmp_path, monkeypatch):
+    """Excel (Spanish locale) saves 'CSV UTF-8' with a BOM and ';' separators."""
+    make_exercise(name="Bench Press")
+    saved = {}
+    monkeypatch.setattr(tc, "load_overlay", dict)
+    monkeypatch.setattr(tc, "save_overlay", saved.update)
+    csv_path = tmp_path / "names.csv"
+    csv_path.write_text(
+        f"key;english;spanish;problems;reviewed\n{BENCH_KEY};Bench Press;Press de banca plano;glossary: x;yes\n",
+        encoding="utf-8-sig",
+    )
+
+    class Args:
+        path = str(csv_path)
+
+    assert tc.cmd_import_csv(Args) == 0
+    assert saved[BENCH_KEY]["name"] == "Press de banca plano"
+    assert saved[BENCH_KEY]["reviewed"] is True
+
+
+def test_import_csv_rejects_file_without_expected_columns(engine, tmp_path, capsys):
+    csv_path = tmp_path / "wrong.csv"
+    csv_path.write_text("nombre,traduccion\nBench Press,Press de banca\n", encoding="utf-8")
+
+    class Args:
+        path = str(csv_path)
+
+    assert tc.cmd_import_csv(Args) == 1
+    assert "expected columns" in capsys.readouterr().err
