@@ -4,8 +4,13 @@ Re-runnable and idempotent: upserts on (source, source_id), never deletes, and
 retires exercises that disappeared from a source. The running app never calls
 any external catalog source.
 
+Spanish names and instructions come from catalog_i18n/es.json (see
+scripts/translate_catalog.py) and are applied after every import, or alone
+with --translations-only.
+
 Usage:
     python -m scripts.import_catalog --source all|free|exercisedb [--no-images] [--db PATH]
+    python -m scripts.import_catalog --translations-only [--db PATH]
 """
 
 from __future__ import annotations
@@ -38,6 +43,8 @@ FREE_DB_ATTRIBUTION = "free-exercise-db (public domain, Unlicense) - github.com/
 
 EXERCISEDB_BASE = "https://oss.exercisedb.dev/api/v1"
 EXERCISEDB_ATTRIBUTION = "ExerciseDB (exercisedb.dev) - non-commercial use, attribution required"
+
+TRANSLATIONS_PATH = Path(__file__).resolve().parent.parent / "catalog_i18n" / "es.json"
 
 STEP_PREFIX_RE = re.compile(r"^\s*Step\s*[:.)]?\s*\d+\s*[:.)]?\s*", re.IGNORECASE)
 MAX_STORED_ERRORS = 100
@@ -354,6 +361,38 @@ def upsert_exercises(session, source: str, transformed: list[dict]) -> tuple[int
     return inserted, updated, retired
 
 
+# --- Spanish overlay -------------------------------------------------------------------
+
+
+def overlay_key(source: str, source_id: str) -> str:
+    """Key of an exercise in catalog_i18n/es.json."""
+    return f"{source}:{source_id}"
+
+
+def load_translations(path: Path = TRANSLATIONS_PATH) -> dict[str, dict]:
+    """The Spanish overlay, or {} if the file does not exist."""
+    if not path.exists():
+        return {}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def apply_translations(session, translations: dict[str, dict]) -> int:
+    """Copy overlay names/instructions onto exercises. Returns rows changed.
+
+    The overlay is the source of truth: an exercise without an entry (or with
+    an empty field) gets None, so removing a bad translation reverts to English.
+    """
+    changed = 0
+    for ex in session.scalars(select(Exercise)):
+        entry = translations.get(overlay_key(ex.source, ex.source_id)) or {}
+        name_es = entry.get("name") or None
+        instructions_es = entry.get("instructions") or None
+        if (ex.name_es, ex.instructions_es) != (name_es, instructions_es):
+            ex.name_es, ex.instructions_es = name_es, instructions_es
+            changed += 1
+    return changed
+
+
 # --- Runner ------------------------------------------------------------------------
 
 
@@ -385,6 +424,8 @@ def import_source(
 
     with get_session() as session:
         inserted, updated, retired = upsert_exercises(session, source, transformed)
+        session.flush()  # new rows must exist before the overlay is applied
+        translated = apply_translations(session, load_translations())
         run.inserted, run.updated, run.retired = inserted, updated, retired
         run.errors = errors[:MAX_STORED_ERRORS]
         run.started_at = started
@@ -398,6 +439,7 @@ def import_source(
         "updated": updated,
         "retired": retired,
         "images_downloaded": images_downloaded,
+        "translated": translated,
         "errors": errors,
     }
 
@@ -411,15 +453,28 @@ def ensure_schema() -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Import exercise catalog datasets")
-    parser.add_argument("--source", required=True, choices=["all", "free", "exercisedb"])
+    parser.add_argument("--source", choices=["all", "free", "exercisedb"])
     parser.add_argument("--db", default=None, help="Database path override (default: settings.database_path)")
     parser.add_argument("--no-images", action="store_true", help="Skip downloading free-exercise-db images")
+    parser.add_argument(
+        "--translations-only",
+        action="store_true",
+        help="Only apply catalog_i18n/es.json to the exercises already imported (no download)",
+    )
     args = parser.parse_args(argv)
+    if not args.source and not args.translations_only:
+        parser.error("--source is required unless --translations-only is given")
 
     database_url = f"sqlite:///{Path(args.db).resolve()}" if args.db else settings.database_url
     media_root = Path(settings.database_path).resolve().parent / "media"
     configure(database_url)
     ensure_schema()
+
+    if args.translations_only:
+        with get_session() as session:
+            changed = apply_translations(session, load_translations())
+        print(f"Applied Spanish overlay: {changed} exercises changed")
+        return 0
 
     sources = (
         [FREE_DB_SOURCE, EXERCISEDB_SOURCE]
@@ -434,7 +489,7 @@ def main(argv: list[str] | None = None) -> int:
         print(
             f"  fetched={summary['fetched']} inserted={summary['inserted']} "
             f"updated={summary['updated']} retired={summary['retired']} "
-            f"images_downloaded={summary['images_downloaded']}"
+            f"images_downloaded={summary['images_downloaded']} translated={summary['translated']}"
         )
         for error in summary["errors"][:10]:
             print(f"  error: {error}", file=sys.stderr)

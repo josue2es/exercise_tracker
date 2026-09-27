@@ -97,6 +97,9 @@ class Exercise(Base):
     equipment: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     level: Mapped[str | None] = mapped_column(String(32), nullable=True)
     instructions: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    # Spanish overlay from catalog_i18n/es.json, applied by the importer; None = untranslated.
+    name_es: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    instructions_es: Mapped[list | None] = mapped_column(JSON, nullable=True)
     # JSON list of media entries, e.g. {"type": "image", "url": "/media/..."} or {"type": "gif", "url": "https://..."}
     media: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     attribution: Mapped[str | None] = mapped_column(Text, nullable=True)

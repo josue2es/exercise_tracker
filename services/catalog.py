@@ -4,6 +4,9 @@ The running app never calls an external catalog source; data arrives through
 the import CLI (scripts/import_catalog.py).
 """
 
+import unicodedata
+from functools import lru_cache
+
 from sqlalchemy import select
 
 from db.models import Exercise
@@ -15,11 +18,24 @@ from services.schemas import ExerciseDetail, ExerciseSummary, Page, utc as utc_
 MAX_LIMIT = 50
 
 
+@lru_cache(maxsize=8192)
+def fold(text: str) -> str:
+    """Lowercase and strip accents, so "jalon" matches "Jalón"."""
+    decomposed = unicodedata.normalize("NFKD", text.lower())
+    return "".join(c for c in decomposed if not unicodedata.combining(c))
+
+
+def _haystack(exercise: Exercise) -> str:
+    """Searchable text: the English search_text plus the Spanish name."""
+    return fold(f"{exercise.search_text} {exercise.name_es or ''}")
+
+
 def _to_summary(exercise: Exercise) -> ExerciseSummary:
     return ExerciseSummary(
         id=exercise.id,
         source=exercise.source,
         name=exercise.name,
+        name_es=exercise.name_es,
         category=exercise.category,
         primary_muscles=exercise.primary_muscles or [],
         secondary_muscles=exercise.secondary_muscles or [],
@@ -34,6 +50,7 @@ def _to_detail(exercise: Exercise) -> ExerciseDetail:
         body_parts=exercise.body_parts or [],
         level=exercise.level,
         instructions=exercise.instructions or [],
+        instructions_es=exercise.instructions_es,
         attribution=exercise.attribution,
         retired_at=utc_(exercise.retired_at),
     )
@@ -50,8 +67,8 @@ def search_exercises(
 ) -> Page:
     """Search the active (non-retired) catalog.
 
-    The free-text query is matched against the lowercase search_text column
-    (every token must match). Muscle and equipment filters match membership in
+    The free-text query is matched, accent-insensitively, against the
+    search_text column plus the Spanish name (every token must match). Muscle and equipment filters match membership in
     the stored JSON lists (primary or secondary muscles). The cursor is the
     last exercise id of the previous page.
     """
@@ -63,10 +80,10 @@ def search_exercises(
             stmt = stmt.where(Exercise.source == source)
         rows = session.scalars(stmt.order_by(Exercise.id)).all()
 
-    needle = query.lower().strip()
+    needle = fold(query.strip())
     if needle:
         tokens = needle.split()
-        rows = [r for r in rows if all(t in r.search_text for t in tokens)]
+        rows = [r for r in rows if all(t in _haystack(r) for t in tokens)]
 
     if muscle:
         m = muscle.lower()

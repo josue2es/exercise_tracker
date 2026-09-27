@@ -14,7 +14,7 @@ from services.errors import ServiceError
 from services.schemas import ExerciseSummary
 from ui.components.exercise_details import open_exercise_dialog
 from ui.components.media import exercise_image, thumbnail_url
-from ui.i18n import error_message, term, terms
+from ui.i18n import error_message, exercise_name, term, terms
 
 PAGE_SIZE = 30
 SEARCH_DEBOUNCE_S = 0.3
@@ -146,7 +146,7 @@ async def exercise_picker(
                                     ):
                                         exercise_image(thumbnail_url(ex.media), 56)
                                         with ui.column().classes("grow gap-0"):
-                                            ui.label(ex.name).classes("font-medium text-sm")
+                                            ui.label(exercise_name(ex)).classes("font-medium text-sm")
                                             detail = ", ".join(
                                                 filter(
                                                     None,

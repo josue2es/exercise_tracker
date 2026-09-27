@@ -10,7 +10,7 @@ from services.schemas import ExerciseSummary, WorkoutExerciseItem
 from ui.auth import current_context
 from ui.components.exercise_details import open_exercise_dialog
 from ui.components.picker import exercise_picker
-from ui.i18n import error_message
+from ui.i18n import error_message, exercise_name
 from ui.layout import page_shell
 
 DEFAULT_SETS = 3
@@ -46,7 +46,7 @@ def _load_state(ctx, workout_id: int | None) -> EditorState:
         rows=[
             EditorRow(
                 exercise_id=e.exercise_id,
-                exercise_name=e.exercise_name,
+                exercise_name=e.exercise_name_es or e.exercise_name,
                 target_sets=e.target_sets,
                 target_reps_min=e.target_reps_min,
                 target_reps_max=e.target_reps_max,
@@ -136,7 +136,7 @@ async def _editor_page(workout_id: int | None):
                 if any(r.exercise_id == exercise.id for r in state.rows):
                     ui.notify("Ya está en esta rutina", type="warning", position="top")
                     return
-                state.rows.append(EditorRow(exercise_id=exercise.id, exercise_name=exercise.name))
+                state.rows.append(EditorRow(exercise_id=exercise.id, exercise_name=exercise_name(exercise)))
                 render_rows()
 
             def on_remove(exercise: ExerciseSummary):

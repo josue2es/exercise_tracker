@@ -167,7 +167,7 @@ async def training_page(workout_id: int):
         def _render_exercise(block: ExerciseBlock):
             with ui.card().classes("w-full"):
                 with ui.row().classes("w-full items-center justify-between"):
-                    ui.label(block.item.exercise_name).classes("font-semibold")
+                    ui.label(block.item.exercise_name_es or block.item.exercise_name).classes("font-semibold")
                     ui.button(
                         "Cómo se hace",
                         icon="help_outline",

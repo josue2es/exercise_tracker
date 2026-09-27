@@ -12,3 +12,6 @@ data/
 
 # NiceGUI runtime storage (sessions)
 .nicegui/
+
+# translate_catalog.py in-flight batch (resumable)
+catalog_i18n/.pending_batch.json
