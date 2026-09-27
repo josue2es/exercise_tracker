@@ -215,6 +215,19 @@ def terms(values) -> str:
     return ", ".join(term(v) for v in values)
 
 
+# --- exercise names and instructions -----------------------------------------------
+
+
+def exercise_name(exercise) -> str:
+    """Spanish name of a catalog exercise, falling back to the English one."""
+    return exercise.name_es or exercise.name
+
+
+def exercise_instructions(exercise) -> list[str]:
+    """Spanish instruction steps, falling back to the English ones."""
+    return exercise.instructions_es or exercise.instructions
+
+
 # --- dates -----------------------------------------------------------------------
 
 MONTHS = ("ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sept", "oct", "nov", "dic")

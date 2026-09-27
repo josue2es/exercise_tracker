@@ -6,8 +6,8 @@ import services.catalog as catalog
 import services.stats as stats
 from services.errors import ServiceError
 from ui.auth import current_context, current_user
-from ui.components.exercise_details import exercise_details
-from ui.i18n import error_message, fmt_date
+from ui.components.exercise_details import english_subtitle, exercise_details
+from ui.i18n import error_message, exercise_name, fmt_date
 from ui.layout import page_shell
 
 
@@ -25,8 +25,10 @@ async def exercise_page(exercise_id: int):
 
     history = await run.io_bound(stats.get_exercise_history, ctx, exercise_id, limit=10)
 
-    with page_shell(exercise.name):
-        ui.label(exercise.name).classes("text-2xl font-bold")
+    with page_shell(exercise_name(exercise)):
+        with ui.column().classes("gap-0"):
+            ui.label(exercise_name(exercise)).classes("text-2xl font-bold")
+            english_subtitle(exercise)
         exercise_details(exercise)
 
         with ui.card().classes("w-full"):

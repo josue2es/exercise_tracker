@@ -31,7 +31,8 @@ everything in one file.
 | `api/` | REST router and request schemas (`/api/v1`, docs at `/api/docs`) |
 | `mcp_server/` | 15 MCP tools (named to avoid shadowing the `mcp` package) |
 | `ui/` | NiceGUI pages and components |
-| `scripts/` | `import_catalog`, `backup_db`, `mcp_smoke_test` |
+| `scripts/` | `import_catalog`, `translate_catalog`, `backup_db`, `mcp_smoke_test` |
+| `catalog_i18n/` | Spanish exercise names/instructions and the gym glossary (see its README) |
 | `deploy/` | systemd units and the Caddy site block |
 | `data/` | SQLite file, media, backups (git-ignored) |
 
@@ -63,11 +64,16 @@ downloads ~1,700 images for free-exercise-db):
 ./import_catalog --source all --no-images
 ```
 
+The UI is in Spanish. Spanish exercise names and instructions live in
+`catalog_i18n/es.json` and are applied on every import (or alone with
+`./import_catalog --translations-only`); see `catalog_i18n/README.md` for how
+they are produced and reviewed.
+
 ## Running
 
 ```bash
 uv run python -m app        # binds 127.0.0.1:8080 (see BIND_HOST/BIND_PORT)
-uv run pytest               # 103 tests
+uv run pytest               # 125 tests
 ```
 
 ## Deployment (Oracle ARM VPS + Caddy)

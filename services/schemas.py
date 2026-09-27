@@ -28,6 +28,7 @@ class ExerciseSummary(BaseModel):
     id: int
     source: str
     name: str
+    name_es: str | None = None  # Spanish overlay; None = untranslated
     category: str | None = None
     primary_muscles: list[str] = []
     secondary_muscles: list[str] = []
@@ -39,6 +40,7 @@ class ExerciseDetail(ExerciseSummary):
     body_parts: list[str] = []
     level: str | None = None
     instructions: list[str] = []
+    instructions_es: list[str] | None = None
     attribution: str | None = None
     retired_at: datetime | None = None
 
@@ -57,6 +59,7 @@ class Page(BaseModel):
 class WorkoutExerciseItem(BaseModel):
     exercise_id: int
     exercise_name: str
+    exercise_name_es: str | None = None
     position: int
     target_sets: int
     target_reps_min: int

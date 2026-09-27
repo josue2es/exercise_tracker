@@ -8,7 +8,7 @@ from services.context import UserContext
 from services.errors import ServiceError
 from services.schemas import ExerciseDetail
 from ui.components.media import exercise_image
-from ui.i18n import error_message, term, terms
+from ui.i18n import error_message, exercise_instructions, exercise_name, term, terms
 
 
 def lightbox(urls: list[str], name: str):
@@ -50,6 +50,12 @@ def lightbox(urls: list[str], name: str):
     return open_at
 
 
+def english_subtitle(exercise) -> None:
+    """The original English name under a translated title (many know it by that name)."""
+    if exercise.name_es and exercise.name_es != exercise.name:
+        ui.label(exercise.name).classes("text-sm text-gray-500").mark("detail-english-name")
+
+
 def exercise_details(exercise: ExerciseDetail) -> None:
     """Media (tap to enlarge), muscles/equipment/level, steps and attribution."""
     if exercise.retired_at:
@@ -58,7 +64,7 @@ def exercise_details(exercise: ExerciseDetail) -> None:
     # Media: local images for free-exercise-db, GIF for ExerciseDB. Tap to enlarge.
     images = [m.url for m in exercise.media]
     if images:
-        open_lightbox = lightbox(images, exercise.name)
+        open_lightbox = lightbox(images, exercise_name(exercise))
         with ui.row().classes("w-full justify-center gap-2 wrap"):
             for i, url in enumerate(images):
                 gif = url.endswith(".gif")
@@ -80,10 +86,11 @@ def exercise_details(exercise: ExerciseDetail) -> None:
         if exercise.level:
             ui.label(f"Nivel: {term(exercise.level)}").classes("text-xs text-gray-500")
 
-    if exercise.instructions:
+    steps = exercise_instructions(exercise)
+    if steps:
         with ui.card().classes("w-full"):
             ui.label("Cómo se hace").classes("font-semibold")
-            for i, step in enumerate(exercise.instructions, start=1):
+            for i, step in enumerate(steps, start=1):
                 ui.label(f"{i}. {step}").classes("text-sm")
 
     if exercise.attribution:
@@ -101,7 +108,9 @@ async def open_exercise_dialog(ctx: UserContext, exercise_id: int) -> None:
     with ui.dialog().props("maximized") as dialog, ui.card().classes("w-full h-full no-shadow p-0"):
         with ui.column().classes("w-full h-full p-4 gap-3 no-wrap"):
             with ui.row().classes("items-center w-full no-wrap"):
-                ui.label(exercise.name).classes("text-xl font-bold grow").mark("detail-title")
+                with ui.column().classes("gap-0 grow"):
+                    ui.label(exercise_name(exercise)).classes("text-xl font-bold").mark("detail-title")
+                    english_subtitle(exercise)
                 ui.button(icon="close", on_click=dialog.close).props("flat round").mark("detail-close")
             with ui.scroll_area().classes("w-full grow"):
                 with ui.column().classes("w-full gap-3 p-1"):

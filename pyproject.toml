@@ -22,6 +22,9 @@ dev = [
     "pytest==9.1.1",
     "mcp==2.2.0",
 ]
+translate = [
+    "anthropic==1.8.0",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -49,4 +52,5 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "db/migrations/versions/*" = ["E501", "W291"]
 "scripts/mcp_smoke_test.py" = ["E501"]
+"scripts/translate_catalog.py" = ["E501"]  # prompt text
 "tests/*" = ["E501"]

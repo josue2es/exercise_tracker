@@ -74,6 +74,7 @@ def _detail(session, workout: Workout) -> WorkoutDetail:
         WorkoutExerciseItem(
             exercise_id=we.exercise_id,
             exercise_name=we.exercise.name,
+            exercise_name_es=we.exercise.name_es,
             position=we.position,
             target_sets=we.target_sets,
             target_reps_min=we.target_reps_min,
