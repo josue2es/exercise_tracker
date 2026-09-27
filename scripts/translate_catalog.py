@@ -522,7 +522,8 @@ CSV_FIELDS = ["key", "english", "spanish", "problems", "reviewed"]
 def cmd_export_csv(args) -> int:
     catalog, overlay = load_catalog(), load_overlay()
     report = validate(overlay, catalog, load_glossary())
-    with open(args.path, "w", newline="", encoding="utf-8") as f:
+    # utf-8-sig (with BOM) so Excel shows accents correctly when opening the file.
+    with open(args.path, "w", newline="", encoding="utf-8-sig") as f:
         writer = csv.DictWriter(f, fieldnames=CSV_FIELDS)
         writer.writeheader()
         # Flagged names first: they need attention most.
@@ -544,8 +545,16 @@ def cmd_export_csv(args) -> int:
 def cmd_import_csv(args) -> int:
     catalog, overlay = load_catalog(), load_overlay()
     edited = approved = 0
-    with open(args.path, newline="", encoding="utf-8") as f:
-        for row in csv.DictReader(f):
+    # Spreadsheets save CSV their own way: Excel adds a BOM and, in Spanish
+    # locales, separates with ";". Accept both, and "," or tabs.
+    with open(args.path, newline="", encoding="utf-8-sig") as f:
+        dialect = csv.Sniffer().sniff(f.readline(), delimiters=",;\t")
+        f.seek(0)
+        reader = csv.DictReader(f, dialect=dialect)
+        if "key" not in (reader.fieldnames or []) or "spanish" not in reader.fieldnames:
+            print(f"{args.path}: expected columns key, spanish, reviewed; found {reader.fieldnames}", file=sys.stderr)
+            return 1
+        for row in reader:
             key, spanish = row["key"], (row.get("spanish") or "").strip()
             if key not in catalog or not spanish:
                 continue
