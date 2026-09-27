@@ -39,7 +39,7 @@ from sqlalchemy import select
 from config import settings
 from db.models import Exercise
 from db.session import configure, get_session
-from scripts.import_catalog import EXERCISEDB_SOURCE, TRANSLATIONS_PATH, overlay_key
+from scripts.import_catalog import EXERCISEDB_SOURCE, TRANSLATIONS_PATH, ensure_schema, overlay_key
 
 I18N_DIR = TRANSLATIONS_PATH.parent
 GLOSSARY_PATH = I18N_DIR / "glossary_es.json"
@@ -580,6 +580,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     configure(f"sqlite:///{Path(args.db).resolve()}" if args.db else settings.database_url)
+    ensure_schema()  # apply pending migrations (name_es/instructions_es), like the importer
     handlers = {
         "status": cmd_status,
         "seed-instructions": cmd_seed_instructions,

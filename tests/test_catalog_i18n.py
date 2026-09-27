@@ -231,3 +231,20 @@ def test_import_csv_marks_manual_and_reviewed(engine, tmp_path, monkeypatch):
     assert entry == {"name": "Press de banca", "name_origin": "manual", "en_name": "Bench Press", "reviewed": True}
     with get_session() as session:
         assert session.scalars(select(Exercise)).one().name_es is None  # CSV edits reach the DB via the importer
+
+
+def test_script_migrates_a_database_from_before_the_overlay(tmp_path, capsys):
+    """Regression: running the script before `alembic upgrade head` must not crash."""
+    from alembic import command
+    from alembic.config import Config
+
+    from db.upgrade import ROOT
+
+    db_path = tmp_path / "old.db"
+    cfg = Config(str(ROOT / "alembic.ini"))
+    cfg.set_main_option("script_location", str(ROOT / "db" / "migrations"))
+    cfg.set_main_option("sqlalchemy.url", f"sqlite:///{db_path}")
+    command.upgrade(cfg, "238576a4eb17")  # the revision before name_es/instructions_es
+
+    assert tc.main(["--db", str(db_path), "status"]) == 0
+    assert "exercises:    0" in capsys.readouterr().out
