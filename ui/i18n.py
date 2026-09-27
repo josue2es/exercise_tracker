@@ -48,7 +48,8 @@ ERRORS: dict[str, str] = {
     "Unit without weight is not valid; omit both for bodyweight": (
         "Unidad sin peso no es válida; deja ambos vacíos para peso corporal"
     ),
-    "Workout not found": "Rutina no encontrada",
+    "Workout not found": "Día de rutina no encontrado",
+    "Routine not found": "Rutina no encontrada",
     "set_number must be at least 1": "El número de serie debe ser al menos 1",
     "Exercise not found": "Ejercicio no encontrado",
     "This session is already finished": "Esta sesión ya terminó",
@@ -59,9 +60,11 @@ ERRORS: dict[str, str] = {
     # workouts
     "Target sets must be between 1 and 20": "Las series objetivo deben estar entre 1 y 20",
     "Rep range must satisfy 1 <= min <= max <= 100": "El rango de repeticiones debe cumplir 1 ≤ mín ≤ máx ≤ 100",
-    "Workout name is required": "El nombre de la rutina es obligatorio",
-    "The same exercise appears twice in this workout": "El mismo ejercicio aparece dos veces en esta rutina",
-    "Workouts can only be deleted in the app": "Las rutinas solo se pueden eliminar en la app",
+    "Workout name is required": "El nombre del día es obligatorio",
+    "Routine name is required": "El nombre de la rutina es obligatorio",
+    "The same exercise appears twice in this workout": "El mismo ejercicio aparece dos veces en este día",
+    "Workouts can only be deleted in the app": "Los días solo se pueden eliminar en la app",
+    "Routines can only be deleted in the app": "Las rutinas solo se pueden eliminar en la app",
     # API keys
     "Please give the key a label": "Ponle un nombre a la clave",
     "Scopes must be a subset of: read, write": "Los permisos deben ser: read, write",

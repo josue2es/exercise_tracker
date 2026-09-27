@@ -1,6 +1,7 @@
 """Workouts service: plans (workouts) with ordered exercises and targets.
 
-Plans are separate from logs: deleting a workout never touches sessions or
+A workout is one day of a routine (see services/routines.py); its `name` is the
+day's name ("Pecho"). Plans are separate from logs: deleting a workout never touches sessions or
 logged sets; removing an exercise from a workout never touches logged sets.
 """
 
@@ -8,7 +9,7 @@ from __future__ import annotations
 
 from sqlalchemy import func, select
 
-from db.models import Exercise, TrainingSession, Workout, WorkoutExercise, utcnow
+from db.models import Exercise, Routine, TrainingSession, Workout, WorkoutExercise, utcnow
 from db.session import get_session
 from services.audit import record_audit
 from services.context import UserContext
@@ -30,6 +31,43 @@ def _get_owned_workout(session, ctx: UserContext, workout_id: int) -> Workout:
     return workout
 
 
+def get_owned_routine(session, ctx: UserContext, routine_id: int) -> Routine:
+    routine = session.scalars(
+        select(Routine).where(
+            Routine.id == routine_id,
+            Routine.user_id == ctx.user_id,
+            Routine.deleted_at.is_(None),
+        )
+    ).one_or_none()
+    if routine is None:
+        raise NotFoundError("Routine not found")
+    return routine
+
+
+def session_label(workout: Workout) -> str:
+    """Name a training session is recorded under: "Volumen · Pecho", or just
+    the day's name when the routine has the same name (single-day routines)."""
+    routine_name = workout.routine.name if workout.routine else None
+    if not routine_name or routine_name == workout.name:
+        return workout.name
+    return f"{routine_name} · {workout.name}"
+
+
+def summary(workout: Workout, exercise_count: int, last_performed) -> WorkoutSummary:
+    return WorkoutSummary(
+        id=workout.id,
+        name=workout.name,
+        notes=workout.notes,
+        routine_id=workout.routine_id,
+        routine_name=workout.routine.name if workout.routine else None,
+        position=workout.position,
+        exercise_count=exercise_count,
+        created_at=utc_(workout.created_at),
+        updated_at=utc_(workout.updated_at),
+        last_performed_at=utc_(last_performed),
+    )
+
+
 def _validate_targets(sets: int, reps_min: int, reps_max: int) -> None:
     if not (1 <= sets <= 20):
         raise ValidationError("Target sets must be between 1 and 20")
@@ -43,7 +81,7 @@ def _audit(session, ctx: UserContext, action: str, target: str | None = None) ->
         record_audit(session, ctx, action, target)
 
 
-def _exercise_count_map(session, workout_ids: list[int]) -> dict[int, int]:
+def exercise_count_map(session, workout_ids: list[int]) -> dict[int, int]:
     if not workout_ids:
         return {}
     rows = session.execute(
@@ -54,7 +92,7 @@ def _exercise_count_map(session, workout_ids: list[int]) -> dict[int, int]:
     return dict(rows)
 
 
-def _last_performed_map(session, user_id: int, workout_ids: list[int]) -> dict[int, object]:
+def last_performed_map(session, user_id: int, workout_ids: list[int]) -> dict[int, object]:
     if not workout_ids:
         return {}
     rows = session.execute(
@@ -91,16 +129,7 @@ def _detail(session, workout: Workout) -> WorkoutDetail:
             )
         ).scalar_one_or_none()
     )
-    return WorkoutDetail(
-        id=workout.id,
-        name=workout.name,
-        notes=workout.notes,
-        exercise_count=len(items),
-        created_at=utc_(workout.created_at),
-        updated_at=utc_(workout.updated_at),
-        last_performed_at=utc_(last),
-        exercises=items,
-    )
+    return WorkoutDetail(**summary(workout, len(items), last).model_dump(), exercises=items)
 
 
 # --- read operations -----------------------------------------------------------------
@@ -115,20 +144,9 @@ def list_workouts(ctx: UserContext) -> list[WorkoutSummary]:
             .order_by(Workout.updated_at.desc())
         ).unique().all()
         ids = [w.id for w in workouts]
-        counts = _exercise_count_map(session, ids)
-        last = _last_performed_map(session, ctx.user_id, ids)
-        return [
-            WorkoutSummary(
-                id=w.id,
-                name=w.name,
-                notes=w.notes,
-                exercise_count=counts.get(w.id, 0),
-                created_at=utc_(w.created_at),
-                updated_at=utc_(w.updated_at),
-                last_performed_at=utc_(last.get(w.id)),
-            )
-            for w in workouts
-        ]
+        counts = exercise_count_map(session, ids)
+        last = last_performed_map(session, ctx.user_id, ids)
+        return [summary(w, counts.get(w.id, 0), last.get(w.id)) for w in workouts]
 
 
 def get_workout(ctx: UserContext, workout_id: int) -> WorkoutDetail:
@@ -141,14 +159,34 @@ def get_workout(ctx: UserContext, workout_id: int) -> WorkoutDetail:
 # --- write operations ------------------------------------------------------------------
 
 
-def create_workout(ctx: UserContext, name: str, notes: str | None = None) -> WorkoutDetail:
-    """Create an empty workout. Exercises are set with set_workout_exercises."""
+def create_workout(
+    ctx: UserContext, name: str, notes: str | None = None, routine_id: int | None = None
+) -> WorkoutDetail:
+    """Create an empty workout (day) at the end of `routine_id`. Without a
+    routine, a new single-day routine with the same name is created for it.
+    Exercises are set with set_workout_exercises."""
     ctx.require_write()
     name = name.strip()
     if not name:
         raise ValidationError("Workout name is required")
     with get_session() as session:
-        workout = Workout(user_id=ctx.user_id, name=name, notes=notes or None)
+        if routine_id is None:
+            routine = Routine(user_id=ctx.user_id, name=name)
+            session.add(routine)
+            session.flush()
+            position = 0
+        else:
+            routine = get_owned_routine(session, ctx, routine_id)
+            last = session.scalar(
+                select(func.max(Workout.position)).where(
+                    Workout.routine_id == routine.id, Workout.deleted_at.is_(None)
+                )
+            )
+            position = 0 if last is None else last + 1
+            routine.updated_at = utcnow()
+        workout = Workout(
+            user_id=ctx.user_id, routine=routine, position=position, name=name, notes=notes or None
+        )
         session.add(workout)
         session.flush()
         _audit(session, ctx, "workout.create", target=workout.name)

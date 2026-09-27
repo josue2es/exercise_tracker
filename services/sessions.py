@@ -22,6 +22,7 @@ from services.audit import record_audit
 from services.context import UserContext
 from services.errors import NotFoundError, ScopeError, ValidationError
 from services.schemas import SessionDetail, SessionSummary, SetLogItem, Weight, utc as utc_
+from services.workouts import session_label
 
 IDLE_CLOSE_HOURS = 6
 VALID_UNITS = {"kg", "lb"}
@@ -174,7 +175,7 @@ def start_session(ctx: UserContext, workout_id: int) -> SessionDetail:
         row = TrainingSession(
             user_id=ctx.user_id,
             workout_id=workout.id,
-            workout_name=workout.name,  # snapshot: history survives plan edits
+            workout_name=session_label(workout),  # snapshot: history survives plan edits
         )
         session.add(row)
         session.flush()
@@ -220,7 +221,7 @@ def log_set(
         row = _open_session(session, ctx.user_id)
         if row is None:
             row = TrainingSession(
-                user_id=ctx.user_id, workout_id=workout.id, workout_name=workout.name
+                user_id=ctx.user_id, workout_id=workout.id, workout_name=session_label(workout)
             )
             session.add(row)
             session.flush()
@@ -228,7 +229,7 @@ def log_set(
             # At most one open session: switching workouts finishes the old one.
             row.finished_at = row.last_activity_at
             row = TrainingSession(
-                user_id=ctx.user_id, workout_id=workout.id, workout_name=workout.name
+                user_id=ctx.user_id, workout_id=workout.id, workout_name=session_label(workout)
             )
             session.add(row)
             session.flush()
