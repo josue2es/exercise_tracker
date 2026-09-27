@@ -1,9 +1,12 @@
-"""Workout editor: name, notes, ordered exercise rows (sets, rep range, comment)."""
+"""Day editor: one day of a routine ("Día 1: Pecho") with its name, notes and
+ordered exercise rows (sets, rep range, comment). Each day has its own page;
+saving returns to the routine's page."""
 
 from dataclasses import dataclass, field
 
 from nicegui import run, ui
 
+import services.routines as routines
 import services.workouts as workouts
 from services.errors import ServiceError, ValidationError
 from services.schemas import ExerciseSummary, WorkoutExerciseItem
@@ -29,17 +32,26 @@ class EditorRow:
 
 @dataclass
 class EditorState:
+    routine_id: int
+    routine_name: str
+    day_number: int
     workout_id: int | None = None
     name: str = ""
     notes: str = ""
     rows: list[EditorRow] = field(default_factory=list)
 
 
-def _load_state(ctx, workout_id: int | None) -> EditorState:
+def _load_state(ctx, workout_id: int | None, routine_id: int | None) -> EditorState:
     if workout_id is None:
-        return EditorState()
+        routine = routines.get_routine(ctx, routine_id)
+        return EditorState(routine_id=routine.id, routine_name=routine.name, day_number=len(routine.days) + 1)
     detail = workouts.get_workout(ctx, workout_id)
+    routine = routines.get_routine(ctx, detail.routine_id)
+    day_number = next((i + 1 for i, d in enumerate(routine.days) if d.id == detail.id), 1)
     return EditorState(
+        routine_id=routine.id,
+        routine_name=routine.name,
+        day_number=day_number,
         workout_id=detail.id,
         name=detail.name,
         notes=detail.notes or "",
@@ -57,27 +69,34 @@ def _load_state(ctx, workout_id: int | None) -> EditorState:
     )
 
 
-@ui.page("/workouts/new", title="Nueva rutina — Gym Tracker")
-async def new_workout_page():
-    await _editor_page(workout_id=None)
+@ui.page("/routines/{routine_id:int}/days/new", title="Nuevo día — Gym Tracker")
+async def new_day_page(routine_id: int):
+    await _editor_page(workout_id=None, routine_id=routine_id)
 
 
-@ui.page("/workouts/{workout_id:int}/edit", title="Editar rutina — Gym Tracker")
+@ui.page("/workouts/{workout_id:int}/edit", title="Editar día — Gym Tracker")
 async def edit_workout_page(workout_id: int):
     await _editor_page(workout_id=workout_id)
 
 
-async def _editor_page(workout_id: int | None):
+async def _editor_page(workout_id: int | None, routine_id: int | None = None):
     ctx = current_context()
     try:
-        state = await run.io_bound(_load_state, ctx, workout_id)
+        state = await run.io_bound(_load_state, ctx, workout_id, routine_id)
     except ServiceError as exc:
         ui.notify(error_message(exc), type="negative", position="top")
         ui.navigate.to("/")
         return
+    back = f"/routines/{state.routine_id}/edit"
 
-    with page_shell("Editor de rutina"):
-        name_input = ui.input("Nombre de la rutina", value=state.name).props("outlined dense").classes("w-full")
+    with page_shell("Editor de día"):
+        ui.label(state.routine_name).classes("text-sm text-gray-500")
+        ui.label(f"Día {state.day_number}").classes("text-2xl font-bold")
+        name_input = (
+            ui.input("Nombre del día", value=state.name, placeholder="p. ej. Pecho")
+            .props("outlined dense")
+            .classes("w-full")
+        )
         notes_input = (
             ui.textarea("Notas", value=state.notes).props("outlined dense autogrow").classes("w-full")
         )
@@ -134,7 +153,7 @@ async def _editor_page(workout_id: int | None):
         async def open_picker():
             def on_pick(exercise: ExerciseSummary):
                 if any(r.exercise_id == exercise.id for r in state.rows):
-                    ui.notify("Ya está en esta rutina", type="warning", position="top")
+                    ui.notify("Ya está en este día", type="warning", position="top")
                     return
                 state.rows.append(EditorRow(exercise_id=exercise.id, exercise_name=exercise_name(exercise)))
                 render_rows()
@@ -155,7 +174,7 @@ async def _editor_page(workout_id: int | None):
             name = name_input.value.strip()
             notes = notes_input.value.strip()
             if not name:
-                ui.notify("Escribe un nombre para la rutina", type="negative", position="top")
+                ui.notify("Escribe un nombre para el día", type="negative", position="top")
                 return
             items = [
                 WorkoutExerciseItem(
@@ -171,7 +190,9 @@ async def _editor_page(workout_id: int | None):
             ]
             try:
                 if state.workout_id is None:
-                    detail = await run.io_bound(workouts.create_workout, ctx, name, notes or None)
+                    detail = await run.io_bound(
+                        workouts.create_workout, ctx, name, notes or None, state.routine_id
+                    )
                     state.workout_id = detail.id
                 else:
                     # Pass "" (not None) so clearing the notes field clears them.
@@ -180,12 +201,12 @@ async def _editor_page(workout_id: int | None):
             except (ServiceError, ValidationError) as exc:
                 ui.notify(error_message(exc), type="negative", position="top")
                 return
-            ui.notify("Rutina guardada", type="positive", position="top")
-            ui.navigate.to("/")
+            ui.notify("Día guardado", type="positive", position="top")
+            ui.navigate.to(back)
 
         render_rows()
 
         ui.button("Agregar ejercicio", icon="add", on_click=open_picker).props("outline").classes("w-full")
         with ui.row().classes("w-full gap-2"):
             ui.button("Guardar", icon="save", on_click=save).props("unelevated").classes("grow")
-            ui.button("Cancelar", on_click=lambda: ui.navigate.to("/")).props("flat")
+            ui.button("Cancelar", on_click=lambda: ui.navigate.to(back)).props("flat")

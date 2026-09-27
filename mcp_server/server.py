@@ -212,11 +212,18 @@ async def get_exercise(exercise_id: int) -> str:
     return "\n".join(lines)
 
 
+def _workout_label(w) -> str:
+    if w.routine_name and w.routine_name != w.name:
+        return f"{w.name} (routine: {w.routine_name})"
+    return w.name
+
+
 @mcp.tool(
     annotations=ToolAnnotations(read_only_hint=True),
     name="list_workouts",
     description=(
         "List the user's workouts with exercise counts and last performed dates. "
+        "Each workout is one day of a routine (e.g. routine 'Volumen', day 'Pecho'). "
         "Example: list_workouts()"
     ),
 )
@@ -225,7 +232,7 @@ async def list_workouts() -> str:
     if not items:
         return "No workouts yet. Create one with create_workout."
     lines = [
-        f"- {w.name} [id {w.id}]: {w.exercise_count} exercises, "
+        f"- {_workout_label(w)} [id {w.id}]: {w.exercise_count} exercises, "
         f"last performed {w.last_performed_at.strftime('%Y-%m-%d') if w.last_performed_at else 'never'}"
         for w in items
     ]
@@ -242,7 +249,7 @@ async def list_workouts() -> str:
 )
 async def get_workout(workout_id: int) -> str:
     detail = await _call(workouts.get_workout, _ctx(), workout_id)
-    lines = [f"{detail.name} [id {detail.id}]"]
+    lines = [f"{_workout_label(detail)} [id {detail.id}]"]
     if detail.notes:
         lines.append(f"Notes: {detail.notes}")
     for e in detail.exercises:

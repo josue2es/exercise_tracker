@@ -2,6 +2,7 @@
 the workout editor's add/remove flow, and the exercise image lightbox."""
 
 import asyncio
+from types import SimpleNamespace
 from contextlib import contextmanager
 
 import pytest
@@ -124,9 +125,12 @@ def test_editor_add_and_remove_flow(stub_catalog, monkeypatch):
 
     monkeypatch.setattr(editor, "current_context", lambda: None)
     monkeypatch.setattr(editor, "page_shell", shell)
+    monkeypatch.setattr(
+        editor.routines, "get_routine", lambda ctx, rid: SimpleNamespace(id=rid, name="Volumen", days=[])
+    )
 
     async def root():
-        await editor._editor_page(None)
+        await editor._editor_page(None, routine_id=1)
 
     async def scenario():
         async with user_simulation(root) as user:

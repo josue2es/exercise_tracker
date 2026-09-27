@@ -68,9 +68,15 @@ class WorkoutExerciseItem(BaseModel):
 
 
 class WorkoutSummary(BaseModel):
+    """One day of a routine; `name` is the day's name ("Pecho")."""
+
     id: int
     name: str
     notes: str | None = None
+    routine_id: int | None = None
+    routine_name: str | None = None
+    # Order within the routine: 0 is "Día 1".
+    position: int = 0
     exercise_count: int = 0
     created_at: datetime
     updated_at: datetime
@@ -79,6 +85,17 @@ class WorkoutSummary(BaseModel):
 
 class WorkoutDetail(WorkoutSummary):
     exercises: list[WorkoutExerciseItem] = []
+
+
+class RoutineSummary(BaseModel):
+    """A routine ("Volumen") with its days in order."""
+
+    id: int
+    name: str
+    created_at: datetime
+    updated_at: datetime
+    last_performed_at: datetime | None = None
+    days: list[WorkoutSummary] = []
 
 
 # --- Sessions and sets ---------------------------------------------------------

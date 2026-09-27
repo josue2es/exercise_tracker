@@ -108,16 +108,36 @@ class Exercise(Base):
     retired_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
+class Routine(Base):
+    """A training program ("Volumen") grouping its days; each day is a Workout."""
+
+    __tablename__ = "routines"
+    __table_args__ = (Index("ix_routines_user_deleted", "user_id", "deleted_at"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow, onupdate=utcnow)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
 class Workout(Base):
+    """One day of a routine ("Día 1: Pecho") with its ordered exercises."""
+
     __tablename__ = "workouts"
     __table_args__ = (Index("ix_workouts_user_deleted", "user_id", "deleted_at"),)
 
     exercises: Mapped[list["WorkoutExercise"]] = relationship(
         order_by="WorkoutExercise.position", cascade="all, delete-orphan"
     )
+    routine: Mapped["Routine"] = relationship()
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    routine_id: Mapped[int] = mapped_column(ForeignKey("routines.id"), nullable=False, index=True)
+    # Order of the day within its routine (Día 1 = position 0).
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)

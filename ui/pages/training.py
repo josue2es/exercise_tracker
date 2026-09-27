@@ -178,6 +178,8 @@ async def training_page(workout_id: int):
     blocks = await build_blocks()
 
     with page_shell("Entrenamiento"):
+        if workout.routine_name and workout.routine_name != workout.name:
+            ui.label(workout.routine_name).classes("text-sm text-gray-500")
         with ui.row().classes("w-full items-center justify-between"):
             ui.label(workout.name).classes("text-2xl font-bold")
             state_label = ui.label(

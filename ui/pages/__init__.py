@@ -6,6 +6,7 @@ from ui.pages import (  # noqa: F401
     home,
     invite,
     login,
+    routine_editor,
     settings,
     training,
     workout_editor,
