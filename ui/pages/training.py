@@ -27,6 +27,13 @@ def _fmt_set(weight_value, weight_unit, reps) -> str:
     return f"{weight_value:g}×{reps} {weight_unit}"
 
 
+def _fmt_rest(seconds: int) -> str:
+    """90 -> "90 s (1:30)"; under a minute just "45 s"."""
+    if seconds < 60:
+        return f"{seconds} s"
+    return f"{seconds} s ({seconds // 60}:{seconds % 60:02d})"
+
+
 def _fmt_last(perf) -> str:
     user = current_user()
     parts = ", ".join(_fmt_set(s.weight and s.weight.value, s.weight and s.weight.unit, s.reps) for s in perf.sets)
@@ -215,7 +222,13 @@ async def training_page(workout_id: int):
                         else ""
                     )
                 )
-                ui.label(f"Objetivo: {target}").classes("text-sm text-gray-500")
+                with ui.row().classes("items-center gap-3"):
+                    ui.label(f"Objetivo: {target}").classes("text-sm text-gray-500")
+                    if block.item.rest_seconds is not None:
+                        # Read-only here: rest is planned in the day editor.
+                        with ui.row().classes("items-center gap-1 text-sm text-gray-500").mark("rest"):
+                            ui.icon("timer").classes("text-base")
+                            ui.label(f"Descanso: {_fmt_rest(block.item.rest_seconds)}")
                 if block.item.comment:
                     ui.label(block.item.comment).classes("text-sm text-gray-500 italic")
                 ui.label(block.last_line).classes("text-sm text-blue-600")

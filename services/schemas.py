@@ -64,6 +64,7 @@ class WorkoutExerciseItem(BaseModel):
     target_sets: int
     target_reps_min: int
     target_reps_max: int
+    rest_seconds: int | None = None  # rest between sets
     comment: str | None = None
 
 

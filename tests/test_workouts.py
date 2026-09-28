@@ -211,3 +211,16 @@ def test_agent_without_write_scope_cannot_edit(engine, two_users, exercise_ids):
     # With write scope it works.
     workouts.update_workout(agent_ctx(a, write=True), w.id, name="Yes")
     assert workouts.get_workout(ui_ctx(a), w.id).name == "Yes"
+
+
+def test_rest_seconds_round_trip_and_validation(engine, two_users, exercise_ids):
+    a, _ = two_users
+    w = workouts.create_workout(ui_ctx(a), "Rest")
+    items = _items(exercise_ids, n=2)
+    items[0].rest_seconds = 90
+    detail = workouts.set_workout_exercises(ui_ctx(a), w.id, items)
+    assert [e.rest_seconds for e in detail.exercises] == [90, None]
+
+    items[0].rest_seconds = 3601
+    with pytest.raises(ValidationError):
+        workouts.set_workout_exercises(ui_ctx(a), w.id, items)

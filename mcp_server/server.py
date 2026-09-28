@@ -256,7 +256,8 @@ async def get_workout(workout_id: int) -> str:
         target = f"{e.target_sets} x {e.target_reps_min}" + (
             f"-{e.target_reps_max}" if e.target_reps_max != e.target_reps_min else ""
         )
-        lines.append(f"- {e.exercise_name} [id {e.exercise_id}]: target {target}")
+        rest = f", rest {e.rest_seconds} s" if e.rest_seconds is not None else ""
+        lines.append(f"- {e.exercise_name} [id {e.exercise_id}]: target {target}{rest}")
         if e.comment:
             lines.append(f"  comment: {e.comment}")
         perf = await _call(stats.get_last_performance, _ctx(), e.exercise_id)
@@ -390,7 +391,7 @@ async def get_training_summary(days: int = 30) -> str:
     description=(
         "Create a new workout plan with exercises, sets and rep ranges. "
         "Example: create_workout(name='Push Day', exercises=["
-        "{'exercise': 'Bench Press', 'sets': 3, 'reps_min': 8, 'reps_max': 12}])"
+        "{'exercise': 'Bench Press', 'sets': 3, 'reps_min': 8, 'reps_max': 12, 'rest_seconds': 90}])"
     ),
 )
 async def create_workout(
@@ -413,6 +414,7 @@ async def create_workout(
                     target_sets=int(spec.get("sets", 3)),
                     target_reps_min=int(spec.get("reps_min", 8)),
                     target_reps_max=int(spec.get("reps_max", spec.get("reps_min", 12))),
+                    rest_seconds=int(spec["rest_seconds"]) if spec.get("rest_seconds") is not None else None,
                     comment=spec.get("comment"),
                 )
             )
@@ -451,6 +453,7 @@ async def update_workout(
                     target_sets=int(spec.get("sets", 3)),
                     target_reps_min=int(spec.get("reps_min", 8)),
                     target_reps_max=int(spec.get("reps_max", spec.get("reps_min", 12))),
+                    rest_seconds=int(spec["rest_seconds"]) if spec.get("rest_seconds") is not None else None,
                     comment=spec.get("comment"),
                 )
             )
