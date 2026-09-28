@@ -16,13 +16,39 @@ Each entry records its origin (`name_origin`, `instructions_origin`):
 
 - **`exercises-dataset`**: instructions for ~1,320 ExerciseDB exercises from
   [hasaneyldrm/exercises-dataset](https://github.com/hasaneyldrm/exercises-dataset)
-  (MIT License, © its contributors). Used only where its English is identical
-  to ours, so the Spanish translates exactly the text we show.
+  (published under MIT, © its contributors). Used only where its English is
+  identical to ours, so the Spanish translates exactly the text we show.
 - **`claude-opus-5`** (or the model used): translated by `scripts/translate_catalog.py`.
 - **`manual`**: edited by a person through the CSV review; never overwritten.
 
-The English content itself remains under its source licenses (free-exercise-db:
-public domain; ExerciseDB: non-commercial, attribution required).
+## License of the translations
+
+The translations are published so anyone can use them. What you may do with
+an entry depends on where its English came from — the key prefix in `es.json`
+(and in `names.csv`) tells you:
+
+| Key prefix | Entries | Source | You may |
+| --- | --- | --- | --- |
+| `free_exercise_db:` | 876 | [free-exercise-db](https://github.com/yuhonas/free-exercise-db), public domain (Unlicense) | Use names and instructions for anything, commercial included. No attribution needed. |
+| `exercisedb_v1:` | 1,500 | [ExerciseDB](https://exercisedb.dev) V1 free dataset: non-commercial use only, attribution required | **Instructions:** non-commercial use only, crediting ExerciseDB (exercisedb.dev). **Names:** short generic terms ("Press de banca"); generally not protected, but if in doubt treat them like the instructions. |
+
+A translation is a derivative work, so it can't be more permissive than its
+original. That is why the `exercisedb_v1:` instructions carry ExerciseDB's
+terms even though the Spanish text is new. The same applies to those that came
+from exercises-dataset: its English is ExerciseDB's text, so its MIT label
+does not lift ExerciseDB's terms.
+
+The glossary (`glossary_es.json`) and the translation tooling are part of this
+project and are MIT like the rest of the code (see `LICENSE`).
+
+Suggested credit when reusing `exercisedb_v1:` entries:
+
+> Exercise instructions from ExerciseDB (exercisedb.dev), translated to Spanish
+> by exercise_tracker (github.com/josue2es/exercise_tracker). Non-commercial use only.
+
+This summarizes the sources' published terms and is not legal advice; for
+commercial use of ExerciseDB content, check its terms or license it from
+AscendAPI.
 
 Each entry also stores the English it was made from (`en_name`,
 `en_instructions_sha`). When upstream changes an exercise, `translate` redoes

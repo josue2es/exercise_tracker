@@ -285,5 +285,5 @@ systemctl list-timers gym-backup.timer # backup scheduled?
 
 The code is released under the [MIT License](LICENSE). The exercise catalog
 data it imports keeps its own licenses (free-exercise-db: public domain;
-ExerciseDB: non-commercial, attribution required; Spanish instructions from
-exercises-dataset: MIT) — see `catalog_i18n/README.md`.
+ExerciseDB: non-commercial, attribution required), and so do its Spanish
+translations — see "License of the translations" in `catalog_i18n/README.md`.
