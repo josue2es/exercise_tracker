@@ -167,6 +167,8 @@ class WorkoutExercise(Base):
     rest_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Target reps in reserve (RIR) per set; None = not set.
     rir: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # As many reps as possible: the rep range is ignored when set.
+    amrap: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     exercise: Mapped["Exercise"] = relationship()

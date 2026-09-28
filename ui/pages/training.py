@@ -214,14 +214,17 @@ async def training_page(workout_id: int):
                         ),
                     ).props("flat round dense").tooltip("Cómo se hace")
 
-                target = (
-                    f"{block.item.target_sets} × {block.item.target_reps_min}"
-                    + (
-                        f"–{block.item.target_reps_max}"
-                        if block.item.target_reps_max != block.item.target_reps_min
-                        else ""
+                if block.item.amrap:
+                    target = f"{block.item.target_sets} × ∞ (AMRAP)"
+                else:
+                    target = (
+                        f"{block.item.target_sets} × {block.item.target_reps_min}"
+                        + (
+                            f"–{block.item.target_reps_max}"
+                            if block.item.target_reps_max != block.item.target_reps_min
+                            else ""
+                        )
                     )
-                )
                 with ui.row().classes("items-center gap-3"):
                     ui.label(f"Objetivo: {target}").classes("text-sm text-gray-500")
                     if block.item.rest_seconds is not None:

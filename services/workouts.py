@@ -119,6 +119,7 @@ def _detail(session, workout: Workout) -> WorkoutDetail:
             target_reps_max=we.target_reps_max,
             rest_seconds=we.rest_seconds,
             rir=we.rir,
+            amrap=we.amrap,
             comment=we.comment,
         )
         for we in entries
@@ -224,7 +225,7 @@ def set_workout_exercises(
 ) -> WorkoutDetail:
     """Replace the ordered exercise list: exercise, sets, rep range, rest, RIR, comment.
 
-    A fixed rep target is min = max. Removing an exercise never touches
+    A fixed rep target is min = max; with amrap the rep range is ignored. Removing an exercise never touches
     logged sets.
     """
     ctx.require_write()
@@ -269,6 +270,7 @@ def set_workout_exercises(
                     target_reps_max=item.target_reps_max,
                     rest_seconds=item.rest_seconds,
                     rir=item.rir,
+                    amrap=item.amrap,
                     comment=item.comment or None,
                 )
             )

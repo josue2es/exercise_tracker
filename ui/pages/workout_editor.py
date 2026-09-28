@@ -29,6 +29,7 @@ class EditorRow:
     target_reps_max: int = DEFAULT_REPS[1]
     rest_seconds: int | None = None
     rir: int | None = None
+    amrap: bool = False
     comment: str = ""
 
 
@@ -66,6 +67,7 @@ def _load_state(ctx, workout_id: int | None, routine_id: int | None) -> EditorSt
                 target_reps_max=e.target_reps_max,
                 rest_seconds=e.rest_seconds,
                 rir=e.rir,
+                amrap=e.amrap,
                 comment=e.comment or "",
             )
             for e in detail.exercises
@@ -144,12 +146,22 @@ async def _editor_page(workout_id: int | None, routine_id: int | None = None):
                             ui.number("Series", value=row.target_sets, min=1, max=20, step=1).bind_value(
                                 row, "target_sets"
                             ).props("outlined dense inputmode=numeric").style("max-width: 5rem")
+                            # AMRAP (as many reps as possible) replaces the rep range.
+                            not_amrap = {"backward": lambda amrap: not amrap}
                             ui.number("Reps mín.", value=row.target_reps_min, min=1, max=100, step=1).bind_value(
                                 row, "target_reps_min"
-                            ).props("outlined dense inputmode=numeric").style("max-width: 5.5rem")
+                            ).props("outlined dense inputmode=numeric").style("max-width: 5.5rem").bind_visibility_from(
+                                row, "amrap", **not_amrap
+                            )
                             ui.number("Reps máx.", value=row.target_reps_max, min=1, max=100, step=1).bind_value(
                                 row, "target_reps_max"
-                            ).props("outlined dense inputmode=numeric").style("max-width: 5.5rem")
+                            ).props("outlined dense inputmode=numeric").style("max-width: 5.5rem").bind_visibility_from(
+                                row, "amrap", **not_amrap
+                            )
+                            ui.label("× ∞ reps").classes("text-lg self-center").bind_visibility_from(row, "amrap")
+                            ui.checkbox("∞ AMRAP").bind_value(row, "amrap").props("dense").classes(
+                                "self-center"
+                            ).tooltip("Tantas repeticiones como sea posible").mark(f"amrap-{row.exercise_id}")
                             ui.number("Descanso", value=row.rest_seconds, min=0, max=3600, step=15).bind_value(
                                 row, "rest_seconds"
                             ).props("outlined dense inputmode=numeric suffix=s").style("max-width: 6rem").mark(
@@ -200,6 +212,7 @@ async def _editor_page(workout_id: int | None, routine_id: int | None = None):
                     target_reps_max=int(r.target_reps_max or DEFAULT_REPS[1]),
                     rest_seconds=int(r.rest_seconds) if r.rest_seconds is not None else None,
                     rir=int(r.rir) if r.rir is not None else None,
+                    amrap=bool(r.amrap),
                     comment=r.comment or None,
                 )
                 for i, r in enumerate(state.rows)

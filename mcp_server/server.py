@@ -253,8 +253,11 @@ async def get_workout(workout_id: int) -> str:
     if detail.notes:
         lines.append(f"Notes: {detail.notes}")
     for e in detail.exercises:
-        target = f"{e.target_sets} x {e.target_reps_min}" + (
-            f"-{e.target_reps_max}" if e.target_reps_max != e.target_reps_min else ""
+        target = f"{e.target_sets} x " + (
+            "AMRAP"
+            if e.amrap
+            else f"{e.target_reps_min}"
+            + (f"-{e.target_reps_max}" if e.target_reps_max != e.target_reps_min else "")
         )
         rest = f", rest {e.rest_seconds} s" if e.rest_seconds is not None else ""
         rest += f", RIR {e.rir}" if e.rir is not None else ""
@@ -390,7 +393,8 @@ async def get_training_summary(days: int = 30) -> str:
     annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False),
     name="create_workout",
     description=(
-        "Create a new workout plan with exercises, sets and rep ranges. "
+        "Create a new workout plan with exercises, sets and rep ranges "
+        "('amrap': true for as many reps as possible). "
         "Example: create_workout(name='Push Day', exercises=["
         "{'exercise': 'Bench Press', 'sets': 3, 'reps_min': 8, 'reps_max': 12, 'rest_seconds': 90, 'rir': 2}])"
     ),
@@ -417,6 +421,7 @@ async def create_workout(
                     target_reps_max=int(spec.get("reps_max", spec.get("reps_min", 12))),
                     rest_seconds=int(spec["rest_seconds"]) if spec.get("rest_seconds") is not None else None,
                     rir=int(spec["rir"]) if spec.get("rir") is not None else None,
+                    amrap=bool(spec.get("amrap", False)),
                     comment=spec.get("comment"),
                 )
             )
@@ -457,6 +462,7 @@ async def update_workout(
                     target_reps_max=int(spec.get("reps_max", spec.get("reps_min", 12))),
                     rest_seconds=int(spec["rest_seconds"]) if spec.get("rest_seconds") is not None else None,
                     rir=int(spec["rir"]) if spec.get("rir") is not None else None,
+                    amrap=bool(spec.get("amrap", False)),
                     comment=spec.get("comment"),
                 )
             )

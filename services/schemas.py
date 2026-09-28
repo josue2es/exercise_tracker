@@ -66,6 +66,7 @@ class WorkoutExerciseItem(BaseModel):
     target_reps_max: int
     rest_seconds: int | None = None  # rest between sets
     rir: int | None = None  # target reps in reserve
+    amrap: bool = False  # as many reps as possible (rep range ignored)
     comment: str | None = None
 
 
