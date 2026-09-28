@@ -185,6 +185,8 @@ async def training_page(workout_id: int):
             state_label = ui.label(
                 "sesión abierta" if open_session else "sin empezar"
             ).classes("text-xs text-gray-500 self-end")
+        if workout.notes:
+            ui.label(workout.notes).classes("text-sm text-gray-600 whitespace-pre-line").mark("day-notes")
 
         container = ui.column().classes("w-full gap-4")
 
@@ -329,23 +331,28 @@ async def training_page(workout_id: int):
 
         async def save_all() -> bool:
             """The single save for the whole routine: delete removed sets, log
-            new ones and persist edits. Returns False if nothing could be saved."""
+            new ones and persist edits.
+
+            An exercise is complete when it has sets and every set has reps.
+            Incomplete exercises are skipped (kept on screen, unsaved); at least
+            one complete exercise is needed. Returns False if nothing was saved."""
             nonlocal session_id
             for block in blocks:
                 if not block.detailed:
                     block.summary_to_rows()
-                for row in block.rows:
-                    if row.reps is None:
-                        ui.notify(
-                            f"{block.name}, serie {row.set_number}: primero indica las reps "
-                            "(o quita el ejercicio con 🗑)",
-                            type="warning",
-                            position="top",
-                        )
-                        return False
+            complete = [b for b in blocks if b.rows and all(r.reps is not None for r in b.rows)]
+            removed = [b for b in blocks if not b.rows]  # 🗑: only pending deletes to apply
+            skipped = [b for b in blocks if b.rows and b not in complete]
+            if not complete:
+                ui.notify(
+                    "Completa al menos un ejercicio: indica las reps de todas sus series",
+                    type="warning",
+                    position="top",
+                )
+                return False
             saved_new = updated = deleted = 0
             try:
-                for block in blocks:
+                for block in removed + complete:
                     while block.deleted_ids:
                         await run.io_bound(sessions.delete_set, ctx, block.deleted_ids[0])
                         block.deleted_ids.pop(0)
@@ -397,6 +404,12 @@ async def training_page(workout_id: int):
                 ui.notify(", ".join(parts), type="positive", position="top")
             else:
                 ui.notify("No hay nada que guardar", type="info", position="top")
+            if skipped:
+                ui.notify(
+                    "Sin guardar (faltan reps): " + ", ".join(b.name for b in skipped),
+                    type="warning",
+                    position="top",
+                )
             _render_blocks()
             return True
 
