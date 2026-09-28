@@ -19,10 +19,18 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """Upgrade schema."""
-    with op.batch_alter_table('workout_exercises', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('amrap', sa.Boolean(), nullable=False, server_default=sa.false()))
-        batch_op.alter_column('amrap', server_default=None)
+    """Upgrade schema.
+
+    A plain ADD COLUMN (no table rebuild) whose server default fills existing
+    rows. The first version of this migration dropped the default in the same
+    batch, so SQLite rebuilt the table without it and failed on existing rows,
+    leaving its temporary table behind; drop that leftover if present.
+    """
+    op.execute('DROP TABLE IF EXISTS _alembic_tmp_workout_exercises')
+    op.add_column(
+        'workout_exercises',
+        sa.Column('amrap', sa.Boolean(), nullable=False, server_default=sa.false()),
+    )
 
 
 def downgrade() -> None:

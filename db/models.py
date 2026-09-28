@@ -18,6 +18,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    false,
     text,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -168,7 +169,7 @@ class WorkoutExercise(Base):
     # Target reps in reserve (RIR) per set; None = not set.
     rir: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # As many reps as possible: the rep range is ignored when set.
-    amrap: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    amrap: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=false())
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     exercise: Mapped["Exercise"] = relationship()
