@@ -3,6 +3,8 @@ name = "gym-tracker"
 version = "0.1.0"
 description = "Mobile-first workout tracker with REST API and MCP server"
 requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = [
     "fastapi==0.141.1",
     "uvicorn==0.53.0",

@@ -158,10 +158,9 @@ async def _editor_page(workout_id: int | None, routine_id: int | None = None):
                             ).props("outlined dense inputmode=numeric").style("max-width: 5.5rem").bind_visibility_from(
                                 row, "amrap", **not_amrap
                             )
-                            ui.label("× ∞ reps").classes("text-lg self-center").bind_visibility_from(row, "amrap")
-                            ui.checkbox("∞ AMRAP").bind_value(row, "amrap").props("dense").classes(
-                                "self-center"
-                            ).tooltip("Tantas repeticiones como sea posible").mark(f"amrap-{row.exercise_id}")
+                            ui.checkbox("∞").bind_value(row, "amrap").props("dense").classes(
+                                "self-center text-lg"
+                            ).tooltip("AMRAP: tantas repeticiones como sea posible").mark(f"amrap-{row.exercise_id}")
                             ui.number("Descanso", value=row.rest_seconds, min=0, max=3600, step=15).bind_value(
                                 row, "rest_seconds"
                             ).props("outlined dense inputmode=numeric suffix=s").style("max-width: 6rem").mark(

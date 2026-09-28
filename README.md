@@ -280,3 +280,10 @@ curl -s http://127.0.0.1:8080/healthz  # app healthy?
 ls -lt data/backups | head -3          # backups recent?
 systemctl list-timers gym-backup.timer # backup scheduled?
 ```
+
+## License
+
+The code is released under the [MIT License](LICENSE). The exercise catalog
+data it imports keeps its own licenses (free-exercise-db: public domain;
+ExerciseDB: non-commercial, attribution required; Spanish instructions from
+exercises-dataset: MIT) — see `catalog_i18n/README.md`.
