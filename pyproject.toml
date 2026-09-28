@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Mobile-first workout tracker with REST API and MCP server"
 requires-python = ">=3.12"
 license = "MIT"
+authors = [{ name = "Josue Escalante", email = "josue2es@protonmail.com" }]
 license-files = ["LICENSE"]
 dependencies = [
     "fastapi==0.141.1",
