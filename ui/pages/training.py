@@ -27,6 +27,13 @@ def _fmt_set(weight_value, weight_unit, reps) -> str:
     return f"{weight_value:g}×{reps} {weight_unit}"
 
 
+def _fmt_rest(seconds: int) -> str:
+    """90 -> "90 s (1:30)"; under a minute just "45 s"."""
+    if seconds < 60:
+        return f"{seconds} s"
+    return f"{seconds} s ({seconds // 60}:{seconds % 60:02d})"
+
+
 def _fmt_last(perf) -> str:
     user = current_user()
     parts = ", ".join(_fmt_set(s.weight and s.weight.value, s.weight and s.weight.unit, s.reps) for s in perf.sets)
@@ -185,6 +192,8 @@ async def training_page(workout_id: int):
             state_label = ui.label(
                 "sesión abierta" if open_session else "sin empezar"
             ).classes("text-xs text-gray-500 self-end")
+        if workout.notes:
+            ui.label(workout.notes).classes("text-sm text-gray-600 whitespace-pre-line").mark("day-notes")
 
         container = ui.column().classes("w-full gap-4")
 
@@ -205,15 +214,28 @@ async def training_page(workout_id: int):
                         ),
                     ).props("flat round dense").tooltip("Cómo se hace")
 
-                target = (
-                    f"{block.item.target_sets} × {block.item.target_reps_min}"
-                    + (
-                        f"–{block.item.target_reps_max}"
-                        if block.item.target_reps_max != block.item.target_reps_min
-                        else ""
+                if block.item.amrap:
+                    target = f"{block.item.target_sets} × ∞ (AMRAP)"
+                else:
+                    target = (
+                        f"{block.item.target_sets} × {block.item.target_reps_min}"
+                        + (
+                            f"–{block.item.target_reps_max}"
+                            if block.item.target_reps_max != block.item.target_reps_min
+                            else ""
+                        )
                     )
-                )
-                ui.label(f"Objetivo: {target}").classes("text-sm text-gray-500")
+                with ui.row().classes("items-center gap-3"):
+                    ui.label(f"Objetivo: {target}").classes("text-sm text-gray-500")
+                    if block.item.rest_seconds is not None:
+                        # Read-only here: rest is planned in the day editor.
+                        with ui.row().classes("items-center gap-1 text-sm text-gray-500").mark("rest"):
+                            ui.icon("timer").classes("text-base")
+                            ui.label(f"Descanso: {_fmt_rest(block.item.rest_seconds)}")
+                    if block.item.rir is not None:
+                        with ui.row().classes("items-center gap-1 text-sm text-gray-500").mark("rir"):
+                            ui.icon("battery_charging_full").classes("text-base")
+                            ui.label(f"RIR: {block.item.rir}").tooltip("Repeticiones en reserva")
                 if block.item.comment:
                     ui.label(block.item.comment).classes("text-sm text-gray-500 italic")
                 ui.label(block.last_line).classes("text-sm text-blue-600")
@@ -329,23 +351,28 @@ async def training_page(workout_id: int):
 
         async def save_all() -> bool:
             """The single save for the whole routine: delete removed sets, log
-            new ones and persist edits. Returns False if nothing could be saved."""
+            new ones and persist edits.
+
+            An exercise is complete when it has sets and every set has reps.
+            Incomplete exercises are skipped (kept on screen, unsaved); at least
+            one complete exercise is needed. Returns False if nothing was saved."""
             nonlocal session_id
             for block in blocks:
                 if not block.detailed:
                     block.summary_to_rows()
-                for row in block.rows:
-                    if row.reps is None:
-                        ui.notify(
-                            f"{block.name}, serie {row.set_number}: primero indica las reps "
-                            "(o quita el ejercicio con 🗑)",
-                            type="warning",
-                            position="top",
-                        )
-                        return False
+            complete = [b for b in blocks if b.rows and all(r.reps is not None for r in b.rows)]
+            removed = [b for b in blocks if not b.rows]  # 🗑: only pending deletes to apply
+            skipped = [b for b in blocks if b.rows and b not in complete]
+            if not complete:
+                ui.notify(
+                    "Completa al menos un ejercicio: indica las reps de todas sus series",
+                    type="warning",
+                    position="top",
+                )
+                return False
             saved_new = updated = deleted = 0
             try:
-                for block in blocks:
+                for block in removed + complete:
                     while block.deleted_ids:
                         await run.io_bound(sessions.delete_set, ctx, block.deleted_ids[0])
                         block.deleted_ids.pop(0)
@@ -397,6 +424,12 @@ async def training_page(workout_id: int):
                 ui.notify(", ".join(parts), type="positive", position="top")
             else:
                 ui.notify("No hay nada que guardar", type="info", position="top")
+            if skipped:
+                ui.notify(
+                    "Sin guardar (faltan reps): " + ", ".join(b.name for b in skipped),
+                    type="warning",
+                    position="top",
+                )
             _render_blocks()
             return True
 

@@ -101,7 +101,7 @@ def test_compact_line_saves_all_sets(stub_services):
 
             # Saving with empty reps warns and logs nothing.
             user.find(marker="save-all").click()
-            await user.should_see("primero indica las reps")
+            await user.should_see("Completa al menos un ejercicio")
             assert stub_services["log"] == []
 
             # One line for all sets: 60 kg × 8, series prefilled with the target (2).
@@ -146,6 +146,51 @@ def test_detail_view_per_set(stub_services):
             user.find(marker="finish").click()
             await user.should_see("Rutina terminada")
             assert stub_services["log"] == [(7, 10, 50.0, "kg", 1), (7, 8, 55.0, "kg", 2)]
+            assert stub_services["finish"] == [55]
+
+    asyncio.run(scenario())
+
+
+def test_saves_complete_exercises_and_skips_the_rest(stub_services, monkeypatch):
+    """Two exercises, only one filled in: Terminar saves that one, warns about
+    the other, and closes the session. The day's notes show under its name."""
+    two = WORKOUT.model_copy(
+        update={
+            "notes": "Descanso 90 s entre series",
+            "exercises": WORKOUT.exercises
+            + [
+                WorkoutExerciseItem(
+                    exercise_id=8,
+                    exercise_name="Dips",
+                    position=1,
+                    target_sets=1,
+                    target_reps_min=10,
+                    target_reps_max=10,
+                    rest_seconds=90,
+                    rir=2,
+                    amrap=True,
+                )
+            ],
+        }
+    )
+    monkeypatch.setattr(training.workouts, "get_workout", lambda ctx, wid: two)
+
+    async def scenario():
+        async with user_simulation(_root) as user:
+            await user.open("/")
+            await user.should_see("Descanso 90 s entre series")
+            # Rest and RIR are shown, not editable: still 3 inputs (weight, reps, sets) per exercise.
+            await user.should_see("Descanso: 90 s (1:30)")
+            await user.should_see("RIR: 2")
+            await user.should_see("1 × ∞ (AMRAP)")
+            assert len(_numbers(user)) == 6
+
+            weight, reps, _sets, *_dips = _numbers(user)
+            _type(user, weight, "40"), _type(user, reps, "12")
+            user.find(marker="finish").click()
+            await user.should_see("Sin guardar (faltan reps): Dips")
+            await user.should_see("Rutina terminada")
+            assert stub_services["log"] == [(7, 12, 40.0, "kg", 1), (7, 12, 40.0, "kg", 2)]
             assert stub_services["finish"] == [55]
 
     asyncio.run(scenario())

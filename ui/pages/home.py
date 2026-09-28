@@ -91,6 +91,10 @@ async def home_page():
                                     f"{_count(day.exercise_count, 'ejercicio', 'ejercicios')} · "
                                     f"{_fmt_date(day.last_performed_at, user.time_zone)}"
                                 ).classes("text-xs text-gray-500")
+                                if day.notes:
+                                    ui.label(day.notes).classes(
+                                        "text-xs text-gray-600 italic whitespace-pre-line"
+                                    ).mark(f"day-notes-{day.id}")
                             ui.button(
                                 "Entrenar",
                                 icon="play_arrow",
