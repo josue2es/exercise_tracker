@@ -61,6 +61,7 @@ ERRORS: dict[str, str] = {
     "Target sets must be between 1 and 20": "Las series objetivo deben estar entre 1 y 20",
     "Rep range must satisfy 1 <= min <= max <= 100": "El rango de repeticiones debe cumplir 1 ≤ mín ≤ máx ≤ 100",
     "Rest must be between 0 and 3600 seconds": "El descanso debe estar entre 0 y 3600 segundos",
+    "RIR must be between 0 and 10": "El RIR debe estar entre 0 y 10",
     "Workout name is required": "El nombre del día es obligatorio",
     "Routine name is required": "El nombre de la rutina es obligatorio",
     "The same exercise appears twice in this workout": "El mismo ejercicio aparece dos veces en este día",

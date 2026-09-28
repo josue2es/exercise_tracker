@@ -229,6 +229,10 @@ async def training_page(workout_id: int):
                         with ui.row().classes("items-center gap-1 text-sm text-gray-500").mark("rest"):
                             ui.icon("timer").classes("text-base")
                             ui.label(f"Descanso: {_fmt_rest(block.item.rest_seconds)}")
+                    if block.item.rir is not None:
+                        with ui.row().classes("items-center gap-1 text-sm text-gray-500").mark("rir"):
+                            ui.icon("battery_charging_full").classes("text-base")
+                            ui.label(f"RIR: {block.item.rir}").tooltip("Repeticiones en reserva")
                 if block.item.comment:
                     ui.label(block.item.comment).classes("text-sm text-gray-500 italic")
                 ui.label(block.last_line).classes("text-sm text-blue-600")

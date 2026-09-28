@@ -165,6 +165,8 @@ class WorkoutExercise(Base):
     target_reps_max: Mapped[int] = mapped_column(Integer, nullable=False, default=12)
     # Rest between sets, in seconds; None = not set.
     rest_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Target reps in reserve (RIR) per set; None = not set.
+    rir: Mapped[int | None] = mapped_column(Integer, nullable=True)
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     exercise: Mapped["Exercise"] = relationship()

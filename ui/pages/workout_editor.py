@@ -28,6 +28,7 @@ class EditorRow:
     target_reps_min: int = DEFAULT_REPS[0]
     target_reps_max: int = DEFAULT_REPS[1]
     rest_seconds: int | None = None
+    rir: int | None = None
     comment: str = ""
 
 
@@ -64,6 +65,7 @@ def _load_state(ctx, workout_id: int | None, routine_id: int | None) -> EditorSt
                 target_reps_min=e.target_reps_min,
                 target_reps_max=e.target_reps_max,
                 rest_seconds=e.rest_seconds,
+                rir=e.rir,
                 comment=e.comment or "",
             )
             for e in detail.exercises
@@ -153,6 +155,11 @@ async def _editor_page(workout_id: int | None, routine_id: int | None = None):
                             ).props("outlined dense inputmode=numeric suffix=s").style("max-width: 6rem").mark(
                                 f"rest-{row.exercise_id}"
                             )
+                            ui.number("RIR", value=row.rir, min=0, max=10, step=1).bind_value(row, "rir").props(
+                                "outlined dense inputmode=numeric"
+                            ).style("max-width: 5rem").tooltip("Repeticiones en reserva").mark(
+                                f"rir-{row.exercise_id}"
+                            )
                         ui.textarea("Comentario", value=row.comment).bind_value(row, "comment").props(
                             "outlined dense autogrow"
                         ).classes("w-full")
@@ -192,6 +199,7 @@ async def _editor_page(workout_id: int | None, routine_id: int | None = None):
                     target_reps_min=int(r.target_reps_min or DEFAULT_REPS[0]),
                     target_reps_max=int(r.target_reps_max or DEFAULT_REPS[1]),
                     rest_seconds=int(r.rest_seconds) if r.rest_seconds is not None else None,
+                    rir=int(r.rir) if r.rir is not None else None,
                     comment=r.comment or None,
                 )
                 for i, r in enumerate(state.rows)

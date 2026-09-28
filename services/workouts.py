@@ -118,6 +118,7 @@ def _detail(session, workout: Workout) -> WorkoutDetail:
             target_reps_min=we.target_reps_min,
             target_reps_max=we.target_reps_max,
             rest_seconds=we.rest_seconds,
+            rir=we.rir,
             comment=we.comment,
         )
         for we in entries
@@ -221,7 +222,7 @@ def set_workout_exercises(
     workout_id: int,
     exercises: list[WorkoutExerciseItem],
 ) -> WorkoutDetail:
-    """Replace the ordered exercise list: exercise, sets, rep range, rest, comment.
+    """Replace the ordered exercise list: exercise, sets, rep range, rest, RIR, comment.
 
     A fixed rep target is min = max. Removing an exercise never touches
     logged sets.
@@ -235,6 +236,8 @@ def set_workout_exercises(
         _validate_targets(item.target_sets, item.target_reps_min, item.target_reps_max)
         if item.rest_seconds is not None and not (0 <= item.rest_seconds <= 3600):
             raise ValidationError("Rest must be between 0 and 3600 seconds")
+        if item.rir is not None and not (0 <= item.rir <= 10):
+            raise ValidationError("RIR must be between 0 and 10")
 
     with get_session() as session:
         workout = _get_owned_workout(session, ctx, workout_id)
@@ -265,6 +268,7 @@ def set_workout_exercises(
                     target_reps_min=item.target_reps_min,
                     target_reps_max=item.target_reps_max,
                     rest_seconds=item.rest_seconds,
+                    rir=item.rir,
                     comment=item.comment or None,
                 )
             )

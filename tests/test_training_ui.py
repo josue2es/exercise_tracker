@@ -167,6 +167,7 @@ def test_saves_complete_exercises_and_skips_the_rest(stub_services, monkeypatch)
                     target_reps_min=10,
                     target_reps_max=10,
                     rest_seconds=90,
+                    rir=2,
                 )
             ],
         }
@@ -177,8 +178,9 @@ def test_saves_complete_exercises_and_skips_the_rest(stub_services, monkeypatch)
         async with user_simulation(_root) as user:
             await user.open("/")
             await user.should_see("Descanso 90 s entre series")
-            # Rest is shown, not editable: still 3 inputs (weight, reps, sets) per exercise.
+            # Rest and RIR are shown, not editable: still 3 inputs (weight, reps, sets) per exercise.
             await user.should_see("Descanso: 90 s (1:30)")
+            await user.should_see("RIR: 2")
             assert len(_numbers(user)) == 6
 
             weight, reps, _sets, *_dips = _numbers(user)
